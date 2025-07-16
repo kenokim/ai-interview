@@ -3,14 +3,13 @@ import { Annotation } from "@langchain/langgraph";
 
 // User Context State
 export interface UserContext {
-  profile: {
+  user_id: string;
+  profile?: {
     name?: string;
     experience_level?: string;
     tech_stack?: string[];
     preferred_language?: string;
   };
-  session_id: string;
-  timestamp: string;
 }
 
 // Persona State
@@ -19,42 +18,48 @@ export interface PersonaState {
   role: string;
   backstory: string;
   style_guidelines: string[];
-  current_mood: string;
+  current_mood?: string;
 }
 
 // Guardrail State
 export interface GuardrailState {
+  is_safe: boolean;
+  user_intent?: "interview_related" | "out_of_scope" | "clarification_needed";
+  parsed_entities?: Record<string, any>;
   error_message?: string;
-  violation_count: number;
-  last_violation_type?: string;
+  fallback_count: number;
 }
 
 // Proactive Context
 export interface ProactiveContext {
-  silence_duration?: number;
-  last_user_engagement?: string;
-  should_prompt: boolean;
+  trigger_event_type: string;
+  trigger_event_id: string;
+  metadata: Record<string, any>;
 }
 
 // Flow Control State
 export interface FlowControlState {
-  next_worker_to_call?: string;
-  interview_stage: string;
-  loop_count: number;
+  next_worker?: string;
+  human_in_loop_payload?: Record<string, any>;
 }
 
 // Task State
 export interface TaskState {
-  question_pool: Array<{
-    id: string;
-    text: string;
-    category: string;
-    difficulty: string;
-    expected_answer?: string;
-  }>;
-  questions_asked: string[];
-  current_question?: string;
+  interview_stage: "Greeting" | "Questioning" | "Feedback" | "Farewell" | "Finished";
+  question_pool: Record<string, any>[];
+  questions_asked: Record<string, any>[];
+  current_question?: Record<string, any>;
   current_answer?: string;
+  agent_outcome?: any;
+  tool_outputs?: Record<string, any>[];
+}
+
+// Evaluation State
+export interface EvaluationState {
+  turn_count: number;
+  last_user_feedback?: "positive" | "negative";
+  task_successful?: boolean;
+  final_evaluation_summary?: string;
   last_evaluation?: {
     overall_score: number;
     evaluations: Array<{
@@ -64,17 +69,6 @@ export interface TaskState {
     }>;
     is_sufficient: boolean;
   };
-}
-
-// Evaluation State
-export interface EvaluationState {
-  total_score: number;
-  individual_scores: Array<{
-    question_id: string;
-    score: number;
-    feedback: string;
-  }>;
-  completion_percentage: number;
 }
 
 // Main Interview State
@@ -107,9 +101,13 @@ export const InterviewStateAnnotation = Annotation.Root({
   user_context: Annotation<UserContext>({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({
-      profile: {},
-      session_id: "",
-      timestamp: new Date().toISOString()
+      user_id: "default_user",
+      profile: {
+        name: "Test User",
+        experience_level: "mid-level",
+        tech_stack: ["JavaScript", "React", "Node.js"],
+        preferred_language: "JavaScript"
+      }
     })
   }),
   
@@ -137,42 +135,70 @@ export const InterviewStateAnnotation = Annotation.Root({
   guardrails: Annotation<GuardrailState>({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({
-      violation_count: 0
+      is_safe: true,
+      fallback_count: 0
     })
   }),
   
   proactive: Annotation<ProactiveContext>({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({
-      should_prompt: false
+      trigger_event_type: "interview_start",
+      trigger_event_id: "default",
+      metadata: {}
     })
   }),
   
   flow_control: Annotation<FlowControlState>({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({
-      interview_stage: "greeting",
-      loop_count: 0
+      next_worker: undefined
     })
   }),
   
   task: Annotation<TaskState>({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({
-      question_pool: [],
+      interview_stage: "Greeting",
+      question_pool: [
+        {
+          id: "js_closures",
+          text: "Can you explain what closures are in JavaScript and provide an example?",
+          category: "JavaScript",
+          difficulty: "medium",
+          expected_topics: ["lexical scoping", "function scope", "practical examples"]
+        },
+        {
+          id: "react_hooks",
+          text: "What are React Hooks and how do they differ from class components?",
+          category: "React",
+          difficulty: "medium",
+          expected_topics: ["useState", "useEffect", "lifecycle methods"]
+        },
+        {
+          id: "async_js",
+          text: "Explain the difference between Promises and async/await in JavaScript.",
+          category: "JavaScript",
+          difficulty: "medium",
+          expected_topics: ["asynchronous programming", "error handling", "syntax differences"]
+        }
+      ],
       questions_asked: [],
       current_question: undefined,
       current_answer: undefined,
-      last_evaluation: undefined
+      agent_outcome: undefined,
+      tool_outputs: undefined
     })
   }),
   
   evaluation: Annotation<EvaluationState>({
     reducer: (prev, next) => ({ ...prev, ...next }),
     default: () => ({
-      total_score: 0,
-      individual_scores: [],
-      completion_percentage: 0
+      turn_count: 0,
+      last_user_feedback: undefined,
+      task_successful: undefined,
+      final_evaluation_summary: undefined,
+      last_evaluation: undefined
     })
   })
 });
