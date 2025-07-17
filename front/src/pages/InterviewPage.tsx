@@ -76,15 +76,22 @@ const InterviewPage = () => {
       setChatMessages(prev => [...prev, { type: 'user', message: currentMessage }]);
       setCurrentMessage('');
       
+      // AI 응답 시뮬레이션
       setTimeout(() => {
         setChatMessages(prev => [...prev, { 
           type: 'ai', 
-          message: '좋은 답변이네요. 다음 질문을 드리겠습니다...' 
+          message: '답변을 검토하고 있습니다. 잠시만 기다려주세요.' 
         }]);
       }, 1000);
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSendMessage();
+    }
+  };
+  
   const toggleRecording = () => {
     setIsRecording(!isRecording);
   };
@@ -271,15 +278,10 @@ const InterviewPage = () => {
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 placeholder="메시지를 입력하세요..."
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
+                onKeyDown={handleKeyPress}
                 className="flex-1"
               />
-              <Button onClick={handleSendMessage} size="sm">
+              <Button onClick={handleSendMessage} size="icon" className="ml-2">
                 <Send className="h-4 w-4" />
               </Button>
             </div>

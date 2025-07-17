@@ -1,9 +1,9 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { InterviewStateAnnotation, InterviewStateType } from "../types/state.js";
-import { supervisorAgent } from "../agents/supervisor.js";
-import { technicalQuestionAgent } from "../agents/workers/technicalQuestionAgent.js";
-import { followupQuestionAgent } from "../agents/workers/followupQuestionAgent.js";
-import { evaluateAnswer } from "../agents/workers/evaluateAnswer.js";
+import { supervisorAgent } from "./supervisor.js";
+import { technicalQuestionAgent } from "./workers/technicalQuestionAgent.js";
+import { followupQuestionAgent } from "./workers/followupQuestionAgent.js";
+import { evaluateAnswer } from "./workers/evaluateAnswer.js";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
 
 // 메인 인터뷰 그래프를 생성합니다.
