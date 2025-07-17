@@ -1,11 +1,13 @@
+import dotenv from 'dotenv';
 import app from './app.js';
+
+dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
 // Start the server
 app.listen(PORT, () => {
   console.log(`🚀 AI Interview Server is running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🤖 API endpoints:`);
   console.log(`   POST /api/interview/start - Start new interview`);
   console.log(`   POST /api/interview/message - Send message`);

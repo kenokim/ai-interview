@@ -3,9 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
 
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import swaggerSpec from './swagger.js';
 
 // Load environment variables
 dotenv.config();
@@ -17,6 +19,9 @@ if (!process.env.GOOGLE_API_KEY) {
 }
 
 const app = express();
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Security and logging middleware
 app.use(helmet());

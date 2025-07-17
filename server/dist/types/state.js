@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.InterviewStateAnnotation = void 0;
-const langgraph_1 = require("@langchain/langgraph");
+import { Annotation } from "@langchain/langgraph";
 // LangGraph State Annotation
-exports.InterviewStateAnnotation = langgraph_1.Annotation.Root({
-    user_context: (0, langgraph_1.Annotation)({
+export const InterviewStateAnnotation = Annotation.Root({
+    user_context: Annotation({
         reducer: (prev, next) => ({ ...prev, ...next }),
         default: () => ({
             user_id: "default_user",
@@ -16,11 +13,11 @@ exports.InterviewStateAnnotation = langgraph_1.Annotation.Root({
             }
         })
     }),
-    messages: (0, langgraph_1.Annotation)({
+    messages: Annotation({
         reducer: (prev, next) => prev.concat(next),
         default: () => []
     }),
-    persona: (0, langgraph_1.Annotation)({
+    persona: Annotation({
         reducer: (prev, next) => ({ ...prev, ...next }),
         default: () => ({
             name: "Dr. Sarah Chen",
@@ -35,14 +32,14 @@ exports.InterviewStateAnnotation = langgraph_1.Annotation.Root({
             current_mood: "professional"
         })
     }),
-    guardrails: (0, langgraph_1.Annotation)({
+    guardrails: Annotation({
         reducer: (prev, next) => ({ ...prev, ...next }),
         default: () => ({
             is_safe: true,
             fallback_count: 0
         })
     }),
-    proactive: (0, langgraph_1.Annotation)({
+    proactive: Annotation({
         reducer: (prev, next) => ({ ...prev, ...next }),
         default: () => ({
             trigger_event_type: "interview_start",
@@ -50,13 +47,13 @@ exports.InterviewStateAnnotation = langgraph_1.Annotation.Root({
             metadata: {}
         })
     }),
-    flow_control: (0, langgraph_1.Annotation)({
+    flow_control: Annotation({
         reducer: (prev, next) => ({ ...prev, ...next }),
         default: () => ({
             next_worker: undefined
         })
     }),
-    task: (0, langgraph_1.Annotation)({
+    task: Annotation({
         reducer: (prev, next) => ({ ...prev, ...next }),
         default: () => ({
             interview_stage: "Greeting",
@@ -90,7 +87,7 @@ exports.InterviewStateAnnotation = langgraph_1.Annotation.Root({
             tool_outputs: undefined
         })
     }),
-    evaluation: (0, langgraph_1.Annotation)({
+    evaluation: Annotation({
         reducer: (prev, next) => ({ ...prev, ...next }),
         default: () => ({
             turn_count: 0,

@@ -76,4 +76,8 @@ export declare const InterviewStateAnnotation: import("@langchain/langgraph").An
     evaluation: import("@langchain/langgraph").BinaryOperatorAggregate<EvaluationState, EvaluationState>;
 }>;
 export type InterviewStateType = typeof InterviewStateAnnotation.State;
+export interface AgentState {
+    messages: BaseMessage[];
+    next: string;
+}
 //# sourceMappingURL=state.d.ts.map

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AndrewNg from "@/assets/andrew-ng.jpg";
 
 interface InterviewState {
@@ -108,7 +109,7 @@ const InterviewPage = () => {
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isChatOpen ? 'w-2/3' : 'w-full'}`}>
+      <div className={`flex-1 flex flex-col transition-all duration-500 ease-in-out ${isChatOpen ? 'w-3/5' : 'w-full'}`}>
         {/* Header */}
         <div className="relative z-10 p-6 flex items-center justify-between">
           <Sheet>
@@ -195,22 +196,22 @@ const InterviewPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="relative z-10 flex-1 flex items-end justify-center px-6 pb-16">
+        <div className="relative z-10 flex-1 flex items-center justify-center px-6">
           <div className="text-center space-y-8">
             {/* Interviewer Avatar */}
             <div className="relative" onClick={() => setShowAvatar(!showAvatar)}>
-              <div className="w-80 h-80 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105">
-                <div className="w-[19.25rem] h-[19.25rem] bg-gradient-to-br from-blue-300 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
+              <div className="w-64 h-64 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105">
+                <div className="w-[15.25rem] h-[15.25rem] bg-gradient-to-br from-blue-300 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
                   {showAvatar ? (
                     <img src={AndrewNg} alt="Andrew Ng" className="w-full h-full object-cover select-none pointer-events-none" />
                   ) : (
-                    <Settings className="h-32 w-32 text-white" />
+                    <Settings className="h-24 w-24 text-white" />
                   )}
                 </div>
               </div>
               {!showAvatar && (
                 <div className="absolute top-5 right-5 bg-gray-900/50 p-2 rounded-full border-2 border-gray-500">
-                  <ImageOff className="h-6 w-6 text-white" />
+                  <ImageOff className="h-4 w-4 text-white" />
                 </div>
               )}
             </div>
@@ -234,17 +235,17 @@ const InterviewPage = () => {
       </div>
 
       {/* Chat Panel */}
-      {isChatOpen && (
-        <div className="flex flex-col w-1/3 bg-white text-black shadow-2xl transition-all duration-300 ease-in-out z-50 relative pointer-events-auto">
+      <div className={`flex flex-col bg-white/5 backdrop-blur-xl border-l border-white/10 text-white shadow-2xl transition-all duration-500 ease-in-out z-50 overflow-hidden whitespace-nowrap ${isChatOpen ? 'w-2/5' : 'w-0'}`}>
+        <div className={`w-full h-full flex flex-col transition-opacity duration-300 ease-in-out ${isChatOpen ? 'opacity-100 delay-200' : 'opacity-0'}`}>
           {/* Chat Header */}
-          <div className="p-4 border-b bg-gray-50 flex-shrink-0">
+          <div className="p-4 border-b border-white/10 flex-shrink-0">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">면접 채팅</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsChatOpen(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-400 hover:text-white"
               >
                 ✕
               </Button>
@@ -252,42 +253,48 @@ const InterviewPage = () => {
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {chatMessages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] p-3 rounded-lg ${
-                    msg.type === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {msg.message}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {chatMessages.map((chat, index) => (
+              <div key={index} className={`flex items-start gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
+                {chat.type === 'ai' && (
+                  <Avatar className="w-8 h-8 border border-white/20">
+                    <AvatarImage src={AndrewNg} alt="AI Interviewer" />
+                    <AvatarFallback className="bg-gray-700 text-xs">AI</AvatarFallback>
+                  </Avatar>
+                )}
+                <div className={`max-w-[80%] p-3 rounded-2xl ${chat.type === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-800/80 text-gray-200 rounded-bl-none'}`}>
+                  <p className="text-sm whitespace-normal">{chat.message}</p>
                 </div>
+                {chat.type === 'user' && (
+                  <Avatar className="w-8 h-8 border border-white/20">
+                    <AvatarFallback className="bg-gray-600 text-xs">U</AvatarFallback>
+                  </Avatar>
+                )}
               </div>
             ))}
           </div>
 
           {/* Chat Input */}
-          <div className="p-4 border-t flex-shrink-0">
-            <div className="flex gap-2">
+          <div className="p-4 border-t border-white/10 flex-shrink-0">
+            <div className="relative">
               <Input
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
                 placeholder="메시지를 입력하세요..."
-                onKeyDown={handleKeyPress}
-                className="flex-1"
+                className="bg-gray-800/80 border-gray-700 rounded-full h-11 pr-12"
               />
-              <Button onClick={handleSendMessage} size="icon" className="ml-2">
+              <Button
+                onClick={handleSendMessage}
+                size="icon"
+                className="absolute top-1/2 right-2 -translate-y-1/2 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

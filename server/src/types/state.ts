@@ -203,4 +203,10 @@ export const InterviewStateAnnotation = Annotation.Root({
   })
 });
 
-export type InterviewStateType = typeof InterviewStateAnnotation.State; 
+export type InterviewStateType = typeof InterviewStateAnnotation.State;
+
+// Simple AgentState for supervisor
+export interface AgentState {
+  messages: BaseMessage[];
+  next: string;
+} 

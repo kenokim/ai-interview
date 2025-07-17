@@ -1,10 +1,20 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { InterviewStateAnnotation, InterviewStateType } from "../types/state.js";
-import { supervisorAgent } from "./supervisor.js";
+import { createSupervisor } from "./supervisor.js";
 import { technicalQuestionAgent } from "./workers/technicalQuestionAgent.js";
 import { followupQuestionAgent } from "./workers/followupQuestionAgent.js";
 import { evaluateAnswer } from "./workers/evaluateAnswer.js";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+
+const model = new ChatGoogleGenerativeAI({
+  modelName: "gemini-2.0-flash",
+  maxOutputTokens: 2048,
+  temperature: 0.7,
+  apiKey: process.env.GOOGLE_API_KEY,
+});
+
+const supervisorAgent = createSupervisor(model);
 
 // 메인 인터뷰 그래프를 생성합니다.
 export function createInterviewGraph() {

@@ -11,7 +11,26 @@ import {
 
 const router = Router();
 
-// Start a new interview session
+/**
+ * @swagger
+ * /api/interview/start:
+ *   post:
+ *     summary: Start a new interview session
+ *     tags: [Interview]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/StartInterviewRequest'
+ *     responses:
+ *       200:
+ *         description: Successfully started interview
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
 router.post('/start', validateStartInterview, asyncHandler(async (req: Request, res: Response) => {
   const request: StartInterviewRequest = req.body;
   const result = await interviewService.startInterview(request);
@@ -24,7 +43,26 @@ router.post('/start', validateStartInterview, asyncHandler(async (req: Request, 
   res.json(response);
 }));
 
-// Process user input and get AI response
+/**
+ * @swagger
+ * /api/interview/message:
+ *   post:
+ *     summary: Process user input and get AI response
+ *     tags: [Interview]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SendMessageRequest'
+ *     responses:
+ *       200:
+ *         description: Successfully processed message
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
 router.post('/message', validateMessage, asyncHandler(async (req: Request, res: Response) => {
   const request: SendMessageRequest = req.body;
   const result = await interviewService.sendMessage(request);
@@ -37,7 +75,27 @@ router.post('/message', validateMessage, asyncHandler(async (req: Request, res: 
   res.json(response);
 }));
 
-// Get interview session status
+/**
+ * @swagger
+ * /api/interview/status/{sessionId}:
+ *   get:
+ *     summary: Get interview session status
+ *     tags: [Interview]
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The session ID
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved session status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
 router.get('/status/:sessionId', asyncHandler(async (req: Request, res: Response) => {
   const { sessionId } = req.params;
   
@@ -55,7 +113,26 @@ router.get('/status/:sessionId', asyncHandler(async (req: Request, res: Response
   res.json(response);
 }));
 
-// End interview session
+/**
+ * @swagger
+ * /api/interview/end:
+ *   post:
+ *     summary: End interview session
+ *     tags: [Interview]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EndInterviewRequest'
+ *     responses:
+ *       200:
+ *         description: Successfully ended interview
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
 router.post('/end', validateSessionId, asyncHandler(async (req: Request, res: Response) => {
   const { sessionId }: EndInterviewRequest = req.body;
   const result = interviewService.endInterview(sessionId);
@@ -68,7 +145,20 @@ router.post('/end', validateSessionId, asyncHandler(async (req: Request, res: Re
   res.json(response);
 }));
 
-// Get all active sessions (for debugging)
+/**
+ * @swagger
+ * /api/interview/sessions:
+ *   get:
+ *     summary: Get all active sessions (for debugging)
+ *     tags: [Interview]
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved all sessions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
 router.get('/sessions', asyncHandler(async (req: Request, res: Response) => {
   const result = interviewService.getAllSessions();
   
