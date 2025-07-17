@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AndrewNg from "@/assets/andrew-ng.jpg";
+import { startInterview, sendMessage, endInterview } from "@/services/api";
 
 interface InterviewState {
   resume: string;
@@ -54,36 +55,74 @@ const InterviewPage = () => {
   const location = useLocation();
   const state = location.state as InterviewState;
 
-  if (!state) {
-    navigate('/');
-    return null;
-  }
-
-  const { resume, jobDescription, jobRole, interviewType, experience } = state;
-
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showAvatar, setShowAvatar] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      type: 'ai',
-      message: `안녕하세요! ${interviewType === 'technical' ? '기술면접' : '컬쳐핏면접'}을 진행하겠습니다. ${experience}년차 ${getJobRoleDisplay(jobRole)} 포지션에 대해 질문드리겠습니다. 준비되시면 말씀해주세요.`
-    }
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSendMessage = () => {
-    if (currentMessage.trim()) {
-      setChatMessages(prev => [...prev, { type: 'user', message: currentMessage }]);
+  useEffect(() => {
+    const initializeInterview = async () => {
+      if (state) {
+        try {
+          const response = await startInterview({ initial_state: state });
+          if (response.success) {
+            setSessionId(response.data.sessionId);
+            setChatMessages([{ type: 'ai', message: response.data.initial_message }]);
+          } else {
+            // Handle error
+            console.error("Failed to start interview:", response.error);
+          }
+        } catch (error) {
+          console.error("Error starting interview:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        navigate('/');
+      }
+    };
+    initializeInterview();
+  }, [state, navigate]);
+
+  const handleSendMessage = async () => {
+    if (currentMessage.trim() && sessionId && !isLoading) {
+      const userMessage = currentMessage;
+      setChatMessages(prev => [...prev, { type: 'user', message: userMessage }]);
       setCurrentMessage('');
-      
-      // AI 응답 시뮬레이션
-      setTimeout(() => {
-        setChatMessages(prev => [...prev, { 
-          type: 'ai', 
-          message: '답변을 검토하고 있습니다. 잠시만 기다려주세요.' 
-        }]);
-      }, 1000);
+      setIsLoading(true);
+
+      try {
+        const response = await sendMessage({ sessionId, message: userMessage });
+        if (response.success) {
+          setChatMessages(prev => [...prev, { type: 'ai', message: response.data.response }]);
+        } else {
+          console.error("Failed to send message:", response.error);
+          setChatMessages(prev => [...prev, { type: 'ai', message: "죄송합니다. 메시지 처리에 실패했습니다." }]);
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+        setChatMessages(prev => [...prev, { type: 'ai', message: "서버와 통신 중 오류가 발생했습니다." }]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleEndInterview = async () => {
+    if (sessionId) {
+      try {
+        await endInterview({ sessionId });
+        navigate('/report', { state: { sessionId } });
+      } catch (error) {
+        console.error("Error ending interview:", error);
+        // Still navigate to report page even if ending fails
+        navigate('/report', { state: { sessionId } });
+      }
+    } else {
+      navigate('/report');
     }
   };
 
@@ -100,6 +139,12 @@ const InterviewPage = () => {
   const getInterviewTypeDisplay = () => {
     return interviewType === 'technical' ? '기술면접' : '컬쳐핏면접';
   };
+
+  if (!state) {
+    return null; // or a loading spinner
+  }
+
+  const { resume, jobDescription, jobRole, interviewType, experience } = state;
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
@@ -188,7 +233,7 @@ const InterviewPage = () => {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>취소</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => navigate('/report')}>종료하고 리포트 보기</AlertDialogAction>
+                  <AlertDialogAction onClick={handleEndInterview}>종료하고 리포트 보기</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -254,6 +299,11 @@ const InterviewPage = () => {
 
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {isLoading && chatMessages.length === 0 && (
+              <div className="text-center py-10">
+                <p>면접을 준비중입니다...</p>
+              </div>
+            )}
             {chatMessages.map((chat, index) => (
               <div key={index} className={`flex items-start gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
                 {chat.type === 'ai' && (
