@@ -9,14 +9,6 @@ const apiClient = axios.create({
   },
 });
 
-// API 응답 형식에 대한 인터페이스 정의
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  error?: string;
-  details?: string[];
-}
-
 // 면접 시작 요청 데이터 타입
 interface StartInterviewPayload {
   jobRole: string;
@@ -42,7 +34,7 @@ interface SendMessagePayload {
 
 // 메시지 전송 응답 데이터 타입
 interface SendMessageData {
-  response: string;
+  message: string;
   stage: string;
 }
 
@@ -73,56 +65,48 @@ interface SessionStatusData {
 
 export const startInterview = async (
   payload: StartInterviewPayload
-): Promise<ApiResponse<StartInterviewData>> => {
+): Promise<StartInterviewData> => {
   try {
     const response = await apiClient.post('/start', payload);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      return error.response.data;
-    }
-    throw new Error('An unexpected error occurred');
+    console.error('Error starting interview:', error);
+    throw error;
   }
 };
 
 export const sendMessage = async (
   payload: SendMessagePayload
-): Promise<ApiResponse<SendMessageData>> => {
+): Promise<SendMessageData> => {
   try {
     const response = await apiClient.post('/message', payload);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      return error.response.data;
-    }
-    throw new Error('An unexpected error occurred');
+    console.error('Error sending message:', error);
+    throw error;
   }
 };
 
 export const endInterview = async (
   payload: EndInterviewPayload
-): Promise<ApiResponse<EndInterviewData>> => {
+): Promise<EndInterviewData> => {
   try {
     const response = await apiClient.post('/end', payload);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      return error.response.data;
-    }
-    throw new Error('An unexpected error occurred');
+    console.error('Error ending interview:', error);
+    throw error;
   }
 };
 
 export const getSessionStatus = async (
   sessionId: string
-): Promise<ApiResponse<SessionStatusData>> => {
+): Promise<SessionStatusData> => {
   try {
     const response = await apiClient.get(`/status/${sessionId}`);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      return error.response.data;
-    }
-    throw new Error('An unexpected error occurred');
+    console.error('Error getting session status:', error);
+    throw error;
   }
 }; 

@@ -91,13 +91,16 @@ const InterviewPage = () => {
             userName: "사용자", // userName 필드 추가
           };
 
+          console.log("Interview Start Request:", payload);
           const response = await startInterview(payload);
-          if (response.success) {
-            setSessionId(response.data.sessionId);
-            setChatMessages([{ id: Date.now(), type: 'ai', message: response.data.message }]);
+          console.log("Interview Start Response:", response);
+
+          if (response && response.sessionId) {
+            setSessionId(response.sessionId);
+            setChatMessages([{ id: Date.now(), type: 'ai', message: response.message }]);
           } else {
-            console.error("Failed to start interview:", response.error);
-            setChatMessages([{ id: Date.now(), type: 'ai', message: "면접 시작에 실패했습니다. 잠시 후 다시 시도해주세요." }]);
+            console.error("Failed to start interview: Invalid response structure", response);
+            setChatMessages([{ id: Date.now(), type: 'ai', message: "면접 시작에 실패했습니다. 서버 응답이 올바르지 않습니다." }]);
           }
         } catch (error) {
           console.error("Error starting interview:", error);
@@ -133,16 +136,16 @@ const InterviewPage = () => {
 
       try {
         const response = await sendMessage({ sessionId, message: userMessage.message });
-        if (response.success) {
+        if (response && response.message) {
           setChatMessages(prev =>
             prev.map(msg =>
               msg.id === thinkingMessage.id
-                ? { ...msg, message: response.data.response, isThinking: false }
+                ? { ...msg, message: response.message, isThinking: false }
                 : msg
             )
           );
         } else {
-          console.error("Failed to send message:", response.error);
+          console.error("Failed to send message: Invalid response structure", response);
           setChatMessages(prev =>
             prev.map(msg =>
               msg.id === thinkingMessage.id

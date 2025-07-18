@@ -6,6 +6,13 @@ export interface StartInterviewRequest {
     jobDescription?: string;
     userName?: string;
 }
+export interface TriggerInterviewRequest {
+    event_type: "USER_APPLIED" | "INTERVIEW_SCHEDULED";
+    event_id: string;
+    user_id: string;
+    session_id: string;
+    metadata?: Record<string, any>;
+}
 export interface SendMessageRequest {
     sessionId: string;
     message: string;
@@ -20,81 +27,47 @@ export interface ApiResponse<T = any> {
     details?: string[];
     timestamp?: string;
 }
+export interface TriggerInterviewResponse {
+    status: "triggered";
+    sessionId: string;
+    message: string;
+}
 export interface StartInterviewResponse {
     sessionId: string;
     message: string;
     stage: string;
-    turnCount: number;
+    messageCount: number;
     userContext: {
         jobRole: string;
         experience: string;
         interviewType: string;
-        resume: string | null;
-        jobDescription: string | null;
-        userName: string | null;
+        resume?: string;
+        jobDescription?: string;
+        userName?: string;
     };
 }
 export interface SendMessageResponse {
+    sessionId: string;
     message: string;
     stage: string;
-    turnCount: number;
     messageCount: number;
-    currentQuestion?: any;
+    lastEvaluation?: any;
     questionsAsked: number;
-    lastEvaluation?: {
-        score: number;
-        evaluations: any[];
-        is_sufficient: boolean;
-    };
-    interviewProgress: {
-        stage: string;
-        totalQuestions: number;
-        questionsAsked: number;
-        isComplete: boolean;
-    };
 }
 export interface SessionStatusResponse {
+    sessionId: string;
     stage: string;
-    turnCount: number;
     messageCount: number;
-    lastEvaluation?: {
-        score: number;
-        evaluations: any[];
-        is_sufficient: boolean;
-    };
+    lastEvaluation?: any;
 }
 export interface EndInterviewResponse {
+    sessionId: string;
     message: string;
-    sessionSummary: {
-        sessionId: string;
-        totalTurns: number;
-        totalMessages: number;
-        questionsAsked: number;
-        stage: string;
-        duration: number;
-    };
-    finalEvaluation?: {
-        score: number;
-        evaluations: any[];
-        is_sufficient: boolean;
-    };
-    interviewResults: {
-        questionsAsked: any[];
-        finalSummary?: string;
-        taskSuccessful?: boolean;
-        recommendations: Array<{
-            area: string;
-            score: number;
-            feedback: string;
-        }>;
-    };
+    stage: string;
 }
 export interface SessionsListResponse {
     sessions: Array<{
         sessionId: string;
-        stage: string;
-        turnCount: number;
-        messageCount: number;
     }>;
     totalSessions: number;
 }

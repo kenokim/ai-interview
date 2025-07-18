@@ -20,10 +20,10 @@ const ReportPage = () => {
 
       try {
         const response = await getSessionStatus(sessionId);
-        if (response.success) {
-          setReport(response.data);
+        if (response && response.sessionId) {
+          setReport(response);
         } else {
-          setError(response.error || "리포트를 불러오는데 실패했습니다.");
+          setError("리포트를 불러오는데 실패했습니다.");
         }
       } catch (err) {
         setError("서버와 통신 중 오류가 발생했습니다.");

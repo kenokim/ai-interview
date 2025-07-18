@@ -1,5 +1,5 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
-import { InterviewStateAnnotation, InterviewStateType } from "../types/state.js";
+import { interviewStateGraph, InterviewStateType } from "../types/state.js";
 import { technicalQuestionAgent } from "./agents/workers/technicalQuestionAgent.js";
 import { followupQuestionAgent } from "./agents/workers/followupQuestionAgent.js";
 import { evaluateAnswer } from "./agents/workers/evaluateAnswer.js";
@@ -15,7 +15,7 @@ export class InterviewGraph {
   private graph: any;
 
   constructor() {
-    const graphBuilder = new StateGraph(InterviewStateAnnotation)
+    const graphBuilder = new StateGraph(interviewStateGraph)
       .addNode(SUPERVISOR, supervisorNode)
       .addNode(INTERVIEWER, interviewerNode)
       .addNode(TECHNICAL_QUESTION_AGENT, technicalQuestionAgent)
@@ -30,7 +30,7 @@ export class InterviewGraph {
         console.log("🔀 분기 조건 확인 중 - state.next:", state.next);
         const nextNode = state.next;
         
-        if (nextNode === "FINISH") {
+        if (nextNode === "FINISH" || !nextNode) {
           return END;
         }
         

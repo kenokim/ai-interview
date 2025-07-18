@@ -1,147 +1,77 @@
-import { InterviewStateType } from "../../types/state.js";
-import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import { BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { RunnableLambda } from "@langchain/core/runnables";
-import { createSupervisorAgent } from "./supervisorAgent.js";
-import { InitialStateBuilder } from '../state/InitialStateBuilder.js';
-import { InterviewDataService } from '../../services/InterviewDataService.js';
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import {
+  InterviewState,
+} from "../../types/state.js";
+
+const supervisorPrompt = `당신은 AI 면접관 팀을 관리하는 슈퍼바이저입니다. 전체 대화 흐름과 현재 상태를 보고, 다음에 어떤 에이전트를 호출해야 할지 결정해야 합니다.
+
+사용 가능한 에이전트:
+- interviewer: 면접 시작/종료 인사, 다음 단계 안내 등 일반적인 대화를 담당합니다.
+- technical_question_agent: 기술 질문을 생성합니다.
+- followup_question_agent: 이전 답변에 대한 후속 질문을 생성합니다.
+- evaluate_answer: 사용자의 답변을 평가합니다.
+- FINISH: 면접을 종료합니다.
+
+현재 면접 단계: {interview_stage}
+마지막 메시지: {last_message}
+프로액티브 실행 컨텍스트: {trigger_context}
+
+규칙:
+1.  **프로액티브 시작**: 'trigger_context'가 있고 면접 단계가 'Greeting'이면, 반드시 'interviewer'를 호출하여 면접 시작 인사를 하세요.
+2.  **사용자 답변 후**: 면접 단계가 'Answering'이면, 반드시 'evaluate_answer'를 호출하여 답변을 평가하세요.
+3.  **평가 후**: 면접 단계가 'Evaluating'이면, 'followup_question_agent'나 'technical_question_agent'를 호출하여 다음 질문을 하세요.
+4.  **질문 후**: 면접 단계가 'Questioning' 또는 'Follow-up'이면, 사용자 답변을 기다려야 하므로 반드시 'FINISH'를 호출하세요.
+5.  **인사**: 면접 단계가 'Greeting'이면, 'technical_question_agent'를 호출하여 첫 질문을 시작하세요.
+
+다음에 호출할 에이전트 이름만 정확히 반환하세요.`;
 
 
-const model = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash-exp",
-  maxOutputTokens: 2048,
-  temperature: 0.7,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
+export const interviewerNode = async (state: InterviewState) => {
+    console.log("🗣️ Interviewer node running...");
+    const { trigger_context } = state;
 
-/**
- * 슈퍼바이저 역할을 하는 Runnable을 생성합니다.
- * LLM을 사용하여 다음 행동을 결정합니다.
- * @param model 사용할 ChatGoogleGenerativeAI 모델
- * @returns 슈퍼바이저 Runnable
- */
-const createSupervisorRunnable = (model: ChatGoogleGenerativeAI) => {
-  const supervisorChain = createSupervisorAgent(model);
+    let message = "다음 질문에 답변해주세요.";
 
-  const route = async (state: InterviewStateType): Promise<{ next: string }> => {
-    const { messages } = state;
-    const lastMessage = messages[messages.length - 1] as HumanMessage;
-
-    console.log("🤖 Supervisor agent 호출 중...");
-    console.log("🤖 Input:", lastMessage.content);
-
-    const response = await supervisorChain.invoke({
-      chat_history: messages.map((msg: BaseMessage) => `${msg._getType()}: ${msg.content}`).join('\n'),
-      input: lastMessage.content,
-      interview_stage: state.task.interview_stage
-    });
-
-    // Handle complex response content from Gemini
-    const responseContent = (
-      Array.isArray(response.content)
-        ? response.content.map(part => (part as any).text || '').join('')
-        : response.content
-    ) as string;
-    
-    console.log("🤖 Supervisor 원본 응답:", responseContent);
-    
-    const lowercasedContent = responseContent.toLowerCase().trim();
-    console.log("🤖 정규화된 응답:", lowercasedContent);
-    
-    let nextNode = "Interviewer"; // 기본값
-    
-    if (lowercasedContent.includes("finish")) {
-      nextNode = "FINISH";
-    } else if (lowercasedContent.includes("technical")) {
-      nextNode = "technical_question_agent";
-    } else if (lowercasedContent.includes("followup")) {
-      nextNode = "followup_question_agent";
-    } else if (lowercasedContent.includes("evaluate")) {
-      nextNode = "evaluate_answer";
-    } else {
-      nextNode = "Interviewer";
+    if (trigger_context) {
+        const { event_type, metadata } = trigger_context;
+        if (event_type === "USER_APPLIED") {
+            message = `안녕하세요, ${metadata?.userName || '지원자'}님. 지원해주셔서 감사합니다. 지금부터 AI 역량 면접을 시작하겠습니다.`;
+        } else if (event_type === "INTERVIEW_SCHEDULED") {
+            message = `안녕하세요, ${metadata?.userName || '지원자'}님. 예약하신 AI 역량 면접 시간이 되었습니다. 준비되셨으면 시작하겠습니다.`;
+        }
     }
-    
-    console.log("🤖 최종 결정:", nextNode);
-    
-    return { next: nextNode };
+  
+    return {
+      messages: [new HumanMessage(message)],
+      next: "supervisor"
+    };
   };
 
-  return new RunnableLambda({ func: route });
-};
-
-
-const supervisorAgent = createSupervisorRunnable(model);
-
-// Supervisor 노드는 다음에 어떤 워커를 실행할지 결정하고 상태를 업데이트합니다.
-export const supervisorNode = async (state: InterviewStateType): Promise<Pick<InterviewStateType, 'next'>> => {
+export const supervisorNode = async (state: InterviewState) => {
   console.log("🎯 Supervisor node 실행 중...");
-  console.log("🎯 현재 상태:", {
-    interview_stage: state.task.interview_stage,
-    messages_count: state.messages.length,
-    last_message: state.messages[state.messages.length - 1]?.content
-  });
-  
-  const supervisorResult = await supervisorAgent.invoke(state);
-  console.log("🎯 Supervisor 결정:", supervisorResult);
-  
+  const { messages, interview_stage, trigger_context } = state;
+  const lastMessage = messages[messages.length - 1];
+
+  const model = new ChatGoogleGenerativeAI({
+    model: "gemini-2.0-flash",
+    temperature: 0,
+  }).pipe(new StringOutputParser());
+
+  const formattedPrompt = supervisorPrompt
+    .replace("{interview_stage}", interview_stage)
+    .replace("{last_message}", lastMessage.content.toString())
+    .replace("{trigger_context}", JSON.stringify(trigger_context, null, 2) || "없음");
+
+  console.log("🤖 Supervisor agent 호출 중...");
+  const response = await model.invoke(formattedPrompt);
+  console.log(`🤖 Supervisor 원본 응답: ${response}`);
+
+  const nextNode = response.toLowerCase().trim().replace(/"/g, "");
+
+  console.log(`🎯 Supervisor 결정: { next: '${nextNode}' }`);
   return {
-    next: supervisorResult.next,
+    next: nextNode,
   };
-};
-
-// Interviewer 노드는 일반적인 대화 흐름을 담당합니다.
-export const interviewerNode = async (state: InterviewStateType) => {
-  // 이 노드는 현재 AI의 응답을 상태에 추가하는 역할을 할 수 있습니다.
-  // 지금은 다음 질문을 유도하는 메시지를 추가합니다.
-  return { messages: [new AIMessage("다음 질문에 답변해주세요.")] };
-};
-
-
-// 사용자 입력을 처리하는 헬퍼 함수
-export async function processUserInput(
-  graph: any, // ReturnType<InterviewGraph['compile']>,
-  state: InterviewStateType,
-  userInput: string
-): Promise<InterviewStateType> {
-  console.log("🔄 Processing user input:", userInput);
-  
-  // 사용자 메시지를 상태에 추가합니다.
-  const updatedState = {
-    ...state,
-    messages: [...state.messages, new HumanMessage(userInput)],
-    task: {
-      ...state.task,
-      current_answer: userInput
-    },
-    evaluation: {
-      ...state.evaluation,
-      turn_count: state.evaluation.turn_count + 1
-    }
-  };
-
-  // 업데이트된 상태로 그래프를 실행합니다.
-  const result = await graph.invoke(updatedState);
-  
-  console.log("✅ Graph execution completed");
-  return result;
-}
-
-// 인터뷰를 시작하는 헬퍼 함수
-export async function startInterview(
-  graph: any, // ReturnType<InterviewGraph['compile']>,
-  initialState?: Partial<InterviewStateType>
-): Promise<InterviewStateType> {
-  console.log("🚀 Starting interview...");
-  
-  // 의존성을 생성하고 주입합니다.
-  const dataService = new InterviewDataService();
-  const stateBuilder = new InitialStateBuilder(dataService);
-  const state = await stateBuilder.build(initialState);
-
-  // 인터뷰를 시작합니다.
-  const result = await graph.invoke(state);
-  
-  console.log("✅ Interview started successfully");
-  return result;
-} 
+}; 

@@ -1,178 +1,201 @@
-import { interviewRepository } from '../repositories/InterviewRepository.js';
-import { startInterview, processUserInput } from '../langgraph/agents/interviewer.js';
-import { InterviewGraph } from '../langgraph/InterviewGraph.js';
-import { 
-  StartInterviewRequest, 
-  SendMessageRequest, 
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import { Runnable, RunnableConfig } from "@langchain/core/runnables";
+import {
+  InterviewStateType,
+} from "../types/state.js";
+import {
+  StartInterviewRequest,
+  SendMessageRequest,
+  EndInterviewRequest,
+  TriggerInterviewRequest,
   StartInterviewResponse,
+  TriggerInterviewResponse,
   SendMessageResponse,
   SessionStatusResponse,
   EndInterviewResponse,
-  SessionsListResponse 
-} from '../types/api.js';
+  SessionsListResponse,
+} from "../types/api.js";
+import { InterviewGraph } from "../langgraph/InterviewGraph.js";
 
 export class InterviewService {
-  
-  async startInterview(request: StartInterviewRequest): Promise<StartInterviewResponse> {
-    const { jobRole, experience, interviewType, resume, jobDescription, userName } = request;
-    
-    // 세션 ID를 생성합니다.
-    const sessionId = interviewRepository.generateSessionId();
-    
-    // 면접 그래프를 생성하고 컴파일합니다.
-    const graph = new InterviewGraph().compile();
-    interviewRepository.saveGraph(sessionId, graph);
-    
-    // 사용자 컨텍스트를 포함한 초기 상태를 준비합니다.
-    const initialState = {
-      user_context: {
-        user_id: sessionId,
-        profile: {
-          name: userName || "Anonymous",
-          experience_level: experience,
-          tech_stack: [jobRole],
-          preferred_language: "JavaScript"
-        }
-      }
-    };
-    
-    // 면접을 시작합니다.
-    const state = await startInterview(graph, initialState);
-    interviewRepository.saveSession(sessionId, state);
-    
-    // AI의 첫 번째 메시지를 가져옵니다.
-    const lastMessage = state.messages[state.messages.length - 1];
-    
-    return {
-      sessionId,
-      message: typeof lastMessage.content === 'string' ? lastMessage.content : JSON.stringify(lastMessage.content),
-      stage: state.task.interview_stage,
-      turnCount: state.evaluation.turn_count,
+  private sessions: Map<string, Runnable<any, any>>;
+  private interviewGraph: InterviewGraph;
+
+  constructor() {
+    this.sessions = new Map();
+    this.interviewGraph = new InterviewGraph();
+  }
+
+  public async startInterview(body: StartInterviewRequest) {
+    const sessionId = `session_${Date.now()}`;
+    const newInterview = this.interviewGraph.compile();
+    this.sessions.set(sessionId, newInterview);
+    console.log("🚀 Starting interview...");
+
+    const initialState: InterviewStateType = {
+      messages: [new HumanMessage({ content: "안녕하세요, 면접을 시작하겠습니다." })],
       userContext: {
-        jobRole,
-        experience,
-        interviewType,
-        resume: resume || null,
-        jobDescription: jobDescription || null,
-        userName: userName || null
-      }
-    };
-  }
-
-  async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
-    const { sessionId, message } = request;
-    
-    // 세션 데이터를 가져옵니다.
-    const currentState = interviewRepository.getSession(sessionId);
-    const graph = interviewRepository.getGraph(sessionId);
-    
-    if (!currentState || !graph) {
-      throw new Error('Interview session not found');
-    }
-    
-    // 사용자 입력을 처리합니다.
-    const updatedState = await processUserInput(graph, currentState, message);
-    interviewRepository.saveSession(sessionId, updatedState);
-    
-    // AI의 응답을 가져옵니다.
-    const aiResponse = updatedState.messages[updatedState.messages.length - 1];
-    
-    return {
-      message: typeof aiResponse.content === 'string' ? aiResponse.content : JSON.stringify(aiResponse.content),
-      stage: updatedState.task.interview_stage,
-      turnCount: updatedState.evaluation.turn_count,
-      messageCount: updatedState.messages.length,
-      currentQuestion: updatedState.task.current_question,
-      questionsAsked: updatedState.task.questions_asked.length,
-      lastEvaluation: updatedState.evaluation.last_evaluation ? {
-        score: updatedState.evaluation.last_evaluation.overall_score,
-        evaluations: updatedState.evaluation.last_evaluation.evaluations,
-        is_sufficient: updatedState.evaluation.last_evaluation.is_sufficient
-      } : undefined,
-      interviewProgress: {
-        stage: updatedState.task.interview_stage,
-        totalQuestions: updatedState.task.question_pool.length,
-        questionsAsked: updatedState.task.questions_asked.length,
-        isComplete: updatedState.task.interview_stage === "Finished"
-      }
-    };
-  }
-
-  getSessionStatus(sessionId: string): SessionStatusResponse {
-    const state = interviewRepository.getSession(sessionId);
-    
-    if (!state) {
-      throw new Error('Interview session not found');
-    }
-    
-    return {
-      stage: state.task.interview_stage,
-      turnCount: state.evaluation.turn_count,
-      messageCount: state.messages.length,
-      lastEvaluation: state.evaluation.last_evaluation ? {
-        score: state.evaluation.last_evaluation.overall_score,
-        evaluations: state.evaluation.last_evaluation.evaluations,
-        is_sufficient: state.evaluation.last_evaluation.is_sufficient
-      } : undefined
-    };
-  }
-
-  endInterview(sessionId: string): EndInterviewResponse {
-    const state = interviewRepository.getSession(sessionId);
-    
-    if (!state) {
-      throw new Error('Interview session not found');
-    }
-    
-    // 세션 데이터를 정리합니다.
-    interviewRepository.deleteSession(sessionId);
-    
-    return {
-      message: 'Interview session ended successfully',
-      sessionSummary: {
-        sessionId,
-        totalTurns: state.evaluation.turn_count,
-        totalMessages: state.messages.length,
-        questionsAsked: state.task.questions_asked.length,
-        stage: state.task.interview_stage,
-        duration: Date.now() - parseInt(sessionId.split('_')[1])
+        jobRole: body.jobRole,
+        experience: body.experience,
+        interviewType: body.interviewType,
+        resume: body.resume,
+        jobDescription: body.jobDescription,
+        userName: body.userName,
       },
-      finalEvaluation: state.evaluation.last_evaluation ? {
-        score: state.evaluation.last_evaluation.overall_score,
-        evaluations: state.evaluation.last_evaluation.evaluations,
-        is_sufficient: state.evaluation.last_evaluation.is_sufficient
-      } : undefined,
-      interviewResults: {
-        questionsAsked: state.task.questions_asked,
-        finalSummary: state.evaluation.final_evaluation_summary,
-        taskSuccessful: state.evaluation.task_successful,
-        recommendations: state.evaluation.last_evaluation?.evaluations?.map(evaluation => ({
-          area: evaluation.criterion,
-          score: evaluation.score,
-          feedback: evaluation.reasoning
-        })) || []
+      interview_stage: "Greeting",
+      questions_asked: [],
+      next: "supervisor",
+    };
+
+    const response = await newInterview.invoke(initialState, {
+      configurable: { thread_id: sessionId },
+    });
+
+    return this.formatResponse(sessionId, response, "start") as StartInterviewResponse;
+  }
+
+  public async triggerInterview(body: TriggerInterviewRequest) {
+    const { session_id: sessionId, event_type, event_id, user_id, metadata } = body;
+    if (this.sessions.has(sessionId)) {
+      // Idempotency check
+      console.log(`[${sessionId}] Received duplicate trigger event, ignoring.`);
+      const existingGraph = this.sessions.get(sessionId)!;
+      const currentState = await existingGraph.invoke({}, { configurable: { thread_id: sessionId } });
+      return this.formatResponse(sessionId, currentState, "trigger") as TriggerInterviewResponse;
+    }
+
+    const newInterview = this.interviewGraph.compile();
+    this.sessions.set(sessionId, newInterview);
+    console.log(`🚀 Triggering proactive interview for event: ${event_type}`);
+
+    const initialState: InterviewStateType = {
+      messages: [],
+      userContext: {
+        jobRole: metadata?.job_role || "ai_agent",
+        experience: metadata?.experience || "junior",
+        interviewType: metadata?.interview_type || "technical",
+        userName: user_id,
+      },
+      interview_stage: "Greeting",
+      questions_asked: [],
+      next: "supervisor",
+      trigger_context: {
+        event_type,
+        event_id,
+        metadata,
+      },
+    };
+
+    const finalState = await newInterview.invoke(initialState, {
+      configurable: { thread_id: sessionId },
+    });
+
+    return this.formatResponse(sessionId, finalState, "trigger") as TriggerInterviewResponse;
+  }
+
+  public async sendMessage(body: SendMessageRequest) {
+    const { sessionId, message } = body;
+    const interview = this.sessions.get(sessionId);
+    if (!interview) {
+      throw new Error("Session not found");
+    }
+
+    const response = await interview.invoke(
+      {
+        messages: [new HumanMessage(message)],
+        interview_stage: "Answering"
+      },
+      {
+        configurable: { thread_id: sessionId },
       }
-    };
+    );
+
+    return this.formatResponse(sessionId, response, "message") as SendMessageResponse;
   }
 
-  getAllSessions(): SessionsListResponse {
-    const sessions = interviewRepository.getAllSessions();
+  public async getSessionStatus(sessionId: string) {
+    const interview = this.sessions.get(sessionId);
+    if (!interview) {
+      throw new Error("Session not found");
+    }
+    const state = await interview.invoke({}, {
+      configurable: { thread_id: sessionId },
+    });
+    return this.formatResponse(sessionId, state, "status") as SessionStatusResponse;
+  }
+
+  public async endInterview(body: EndInterviewRequest) {
+    const { sessionId } = body;
+    const interview = this.sessions.get(sessionId);
+    if (!interview) {
+      throw new Error("Session not found");
+    }
     
+    // You might want to do some cleanup or final evaluation here
+    const response = await interview.invoke(
+        {
+            messages: [new HumanMessage("면접을 종료합니다.")],
+            next: "supervisor",
+            interview_stage: "Finished"
+        },
+        {
+          configurable: { thread_id: sessionId },
+        }
+      );
+    this.sessions.delete(sessionId);
+    return this.formatResponse(sessionId, response, "end") as EndInterviewResponse;
+  }
+
+  private formatResponse(
+    sessionId: string, 
+    state: InterviewStateType, 
+    type: "start" | "trigger" | "message" | "status" | "end"
+    ) {
+    const lastMessage = state.messages[state.messages.length - 1];
+    const messageContent = lastMessage?.content?.toString() ?? "";
+
+    const baseResponse = {
+        sessionId,
+        message: messageContent,
+        stage: state.interview_stage,
+        messageCount: state.messages.length,
+        userContext: state.userContext,
+        lastEvaluation: state.last_evaluation,
+        questionsAsked: state.questions_asked.length,
+      };
+
+    switch (type) {
+        case "trigger":
+            return {
+                status: "triggered",
+                sessionId,
+                message: messageContent || "Interview triggered. Waiting for user to start.",
+              } as TriggerInterviewResponse;
+        case "start":
+            return baseResponse as StartInterviewResponse;
+        case "message":
+            return baseResponse as SendMessageResponse;
+        case "status":
+            return baseResponse as SessionStatusResponse;
+        case "end":
+            return {
+                ...baseResponse,
+                message: "Interview ended successfully.",
+            } as EndInterviewResponse
+        default:
+            return baseResponse;
+    }
+  }
+
+  public listSessions(): SessionsListResponse {
+    const sessionIds = Array.from(this.sessions.keys());
     return {
-      sessions,
-      totalSessions: sessions.length
-    };
-  }
-
-  // 유틸리티 메서드
-  sessionExists(sessionId: string): boolean {
-    return interviewRepository.sessionExists(sessionId);
-  }
-
-  cleanupExpiredSessions(maxAge?: number): number {
-    return interviewRepository.cleanupExpiredSessions(maxAge);
+        sessions: sessionIds.map((sessionId) => ({
+            sessionId: sessionId,
+          })),
+        totalSessions: sessionIds.length,
+    }
   }
 }
 
-// 싱글턴 인스턴스
 export const interviewService = new InterviewService(); 
