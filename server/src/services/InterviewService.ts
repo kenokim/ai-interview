@@ -1,5 +1,6 @@
 import { interviewRepository } from '../repositories/InterviewRepository.js';
-import { createInterviewGraph, startInterview, processUserInput } from '../langgraph/interviewer.js';
+import { startInterview, processUserInput } from '../langgraph/agents/interviewer.js';
+import { InterviewGraph } from '../langgraph/InterviewGraph.js';
 import { 
   StartInterviewRequest, 
   SendMessageRequest, 
@@ -18,8 +19,8 @@ export class InterviewService {
     // 세션 ID를 생성합니다.
     const sessionId = interviewRepository.generateSessionId();
     
-    // 면접 그래프를 생성합니다.
-    const graph = createInterviewGraph();
+    // 면접 그래프를 생성하고 컴파일합니다.
+    const graph = new InterviewGraph().compile();
     interviewRepository.saveGraph(sessionId, graph);
     
     // 사용자 컨텍스트를 포함한 초기 상태를 준비합니다.
