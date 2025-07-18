@@ -30,8 +30,10 @@ interface InterviewState {
 }
 
 type ChatMessage = {
+  id: number;
   type: 'ai' | 'user';
   message: string;
+  isThinking?: boolean;
 };
 
 const getJobRoleDisplay = (role: string) => {
@@ -64,7 +66,7 @@ const InterviewPage = () => {
   const [showAvatar, setShowAvatar] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("isChatOpen", JSON.stringify(isChatOpen));
@@ -92,16 +94,16 @@ const InterviewPage = () => {
           const response = await startInterview(payload);
           if (response.success) {
             setSessionId(response.data.sessionId);
-            setChatMessages([{ type: 'ai', message: response.data.initial_message }]);
+            setChatMessages([{ id: Date.now(), type: 'ai', message: response.data.initial_message }]);
           } else {
             console.error("Failed to start interview:", response.error);
-            setChatMessages([{ type: 'ai', message: "면접 시작에 실패했습니다. 잠시 후 다시 시도해주세요." }]);
+            setChatMessages([{ id: Date.now(), type: 'ai', message: "면접 시작에 실패했습니다. 잠시 후 다시 시도해주세요." }]);
           }
         } catch (error) {
           console.error("Error starting interview:", error);
-          setChatMessages([{ type: 'ai', message: "서버와 통신 중 오류가 발생했습니다." }]);
+          setChatMessages([{ id: Date.now(), type: 'ai', message: "서버와 통신 중 오류가 발생했습니다." }]);
         } finally {
-          setIsLoading(false);
+          // setIsLoading(false); // This line is removed as per the new_code
         }
       } else {
         navigate('/');
@@ -111,25 +113,55 @@ const InterviewPage = () => {
   }, [state, navigate]);
 
   const handleSendMessage = async () => {
-    if (currentMessage.trim() && sessionId && !isLoading) {
-      const userMessage = currentMessage;
-      setChatMessages(prev => [...prev, { type: 'user', message: userMessage }]);
+    if (currentMessage.trim() && sessionId && !isSending) {
+      const userMessage: ChatMessage = {
+        id: Date.now(),
+        type: 'user',
+        message: currentMessage.trim(),
+      };
+      
+      const thinkingMessage: ChatMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        message: '...',
+        isThinking: true,
+      };
+
+      setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
       setCurrentMessage('');
-      setIsLoading(true);
+      setIsSending(true);
 
       try {
-        const response = await sendMessage({ sessionId, message: userMessage });
+        const response = await sendMessage({ sessionId, message: userMessage.message });
         if (response.success) {
-          setChatMessages(prev => [...prev, { type: 'ai', message: response.data.response }]);
+          setChatMessages(prev =>
+            prev.map(msg =>
+              msg.id === thinkingMessage.id
+                ? { ...msg, message: response.data.response, isThinking: false }
+                : msg
+            )
+          );
         } else {
           console.error("Failed to send message:", response.error);
-          setChatMessages(prev => [...prev, { type: 'ai', message: "죄송합니다. 메시지 처리에 실패했습니다." }]);
+          setChatMessages(prev =>
+            prev.map(msg =>
+              msg.id === thinkingMessage.id
+                ? { ...msg, message: "죄송합니다. 메시지 처리에 실패했습니다.", isThinking: false }
+                : msg
+            )
+          );
         }
       } catch (error) {
         console.error("Error sending message:", error);
-        setChatMessages(prev => [...prev, { type: 'ai', message: "서버와 통신 중 오류가 발생했습니다." }]);
+        setChatMessages(prev =>
+          prev.map(msg =>
+            msg.id === thinkingMessage.id
+              ? { ...msg, message: "서버와 통신 중 오류가 발생했습니다.", isThinking: false }
+              : msg
+          )
+        );
       } finally {
-        setIsLoading(false);
+        setIsSending(false);
       }
     }
   };
@@ -285,14 +317,9 @@ const InterviewPage = () => {
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-black/10">
-            {isLoading && chatMessages.length === 0 && (
-              <div className="text-center py-10">
-                <p>면접을 준비중입니다...</p>
-              </div>
-            )}
-            {chatMessages.map((chat, index) => (
-              <div key={index} className={`flex items-start gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-white/10">
+            {chatMessages.map((chat) => (
+              <div key={chat.id} className={`flex items-start gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
                 {chat.type === 'ai' && (
                   <Avatar className="w-8 h-8 border border-white/20">
                     <AvatarImage src={AndrewNg} alt="AI Interviewer" />
@@ -300,7 +327,17 @@ const InterviewPage = () => {
                   </Avatar>
                 )}
                 <div className={`max-w-[80%] p-3 rounded-2xl ${chat.type === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-800/80 text-gray-200 rounded-bl-none'}`}>
-                  <p className="text-sm whitespace-normal">{chat.message}</p>
+                  {chat.isThinking ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-fast"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-medium"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-slow"></span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-normal">{chat.message}</p>
+                  )}
                 </div>
                 {chat.type === 'user' && (
                   <Avatar className="w-8 h-8 border border-white/20">
@@ -309,24 +346,6 @@ const InterviewPage = () => {
                 )}
               </div>
             ))}
-            {isLoading && chatMessages.length > 0 && (
-              <div className="flex items-start gap-3">
-                <Avatar className="w-8 h-8 border border-white/20">
-                  <AvatarImage src={AndrewNg} alt="AI Interviewer" />
-                  <AvatarFallback className="bg-gray-700 text-xs">AI</AvatarFallback>
-                </Avatar>
-                <div className="max-w-[80%] p-3 rounded-2xl bg-gray-800/80 text-gray-200 rounded-bl-none">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">생각 중...</span>
-                    <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-fast"></span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-medium"></span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-slow"></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
           <div className="p-4 border-t border-white/10 flex-shrink-0 bg-white/10">
             <div className="relative">
@@ -336,15 +355,15 @@ const InterviewPage = () => {
                 onKeyPress={handleKeyPress}
                 placeholder="답변을 입력하세요..."
                 className="bg-gray-800/80 border-gray-700 rounded-full h-11 pr-12"
-                disabled={isLoading}
+                disabled={isSending}
               />
               <Button
                 onClick={handleSendMessage}
                 size="icon"
                 className="absolute top-1/2 right-2 -translate-y-1/2 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400"
-                disabled={isLoading || !currentMessage.trim()}
+                disabled={isSending || !currentMessage.trim()}
               >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </div>
