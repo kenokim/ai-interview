@@ -1,11 +1,13 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { InterviewStateAnnotation, InterviewStateType } from "../types/state.js";
-import { createSupervisor } from "./supervisor.js";
 import { technicalQuestionAgent } from "./workers/technicalQuestionAgent.js";
 import { followupQuestionAgent } from "./workers/followupQuestionAgent.js";
 import { evaluateAnswer } from "./workers/evaluateAnswer.js";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { RunnableLambda } from "@langchain/core/runnables";
+import { createSupervisorAgent } from "./supervisor/supervisorAgent.js";
+
 
 const model = new ChatGoogleGenerativeAI({
   modelName: "gemini-2.0-flash",
@@ -14,81 +16,95 @@ const model = new ChatGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
-const supervisorAgent = createSupervisor(model);
+/**
+ * 슈퍼바이저 역할을 하는 Runnable을 생성합니다.
+ * LLM을 사용하여 다음 행동을 결정합니다.
+ * @param model 사용할 ChatGoogleGenerativeAI 모델
+ * @returns 슈퍼바이저 Runnable
+ */
+const createSupervisorRunnable = (model: ChatGoogleGenerativeAI) => {
+  const supervisorChain = createSupervisorAgent(model);
+
+  const route = async (state: InterviewStateType): Promise<{ next: string }> => {
+    const { messages } = state;
+    const lastMessage = messages[messages.length - 1] as HumanMessage;
+
+    const response = await supervisorChain.invoke({
+      chat_history: messages.map((msg: BaseMessage) => `${msg._getType()}: ${msg.content}`).join('\n'),
+      input: lastMessage.content,
+      interview_stage: state.task.interview_stage
+    });
+
+    // Handle complex response content from Gemini
+    const responseContent = (
+      Array.isArray(response.content)
+        ? response.content.map(part => (part as any).text || '').join('')
+        : response.content
+    ) as string;
+    
+    const lowercasedContent = responseContent.toLowerCase();
+    
+    if (lowercasedContent.includes("finish")) {
+      return { next: "FINISH" };
+    } else if (lowercasedContent.includes("technical")) {
+      return { next: "technical_question_agent" };
+    } else if (lowercasedContent.includes("followup")) {
+      return { next: "followup_question_agent" };
+    } else {
+      return { next: "Interviewer" };
+    }
+  };
+
+  return new RunnableLambda({ func: route });
+};
+
+
+const supervisorAgent = createSupervisorRunnable(model);
+
+// Supervisor 노드는 다음에 어떤 워커를 실행할지 결정하고 상태를 업데이트합니다.
+const supervisorNode = async (state: InterviewStateType): Promise<Pick<InterviewStateType, 'next'>> => {
+  const supervisorResult = await supervisorAgent.invoke(state);
+  return {
+    next: supervisorResult.next,
+  };
+};
+
+// Interviewer 노드는 일반적인 대화 흐름을 담당합니다.
+const interviewerNode = async (state: InterviewStateType) => {
+  // 이 노드는 현재 AI의 응답을 상태에 추가하는 역할을 할 수 있습니다.
+  // 지금은 다음 질문을 유도하는 메시지를 추가합니다.
+  return { messages: [new AIMessage("다음 질문에 답변해주세요.")] };
+};
 
 // 메인 인터뷰 그래프를 생성합니다.
 export function createInterviewGraph() {
   const graph = new StateGraph(InterviewStateAnnotation)
-    .addNode("supervisor", supervisorAgent)
+    .addNode("supervisor", supervisorNode)
+    .addNode("Interviewer", interviewerNode)
     .addNode("technical_question_agent", technicalQuestionAgent)
     .addNode("followup_question_agent", followupQuestionAgent)
     .addNode("evaluate_answer", evaluateAnswer);
 
-  // 엣지를 추가합니다.
+  // 그래프의 시작점을 supervisor로 설정합니다.
   graph.addEdge(START, "supervisor");
-  
-  // 슈퍼바이저로부터의 조건부 라우팅
+
+  // supervisor의 결정에 따라 다음 노드로 분기합니다.
   graph.addConditionalEdges(
     "supervisor",
-    (state: InterviewStateType) => {
-      const nextWorker = state.flow_control.next_worker;
-      
-      // 오류 케이스를 처리합니다.
-      if (state.guardrails?.error_message) {
-        return END;
-      }
-      
-      // 슈퍼바이저의 결정에 따라 라우팅합니다.
-      if (nextWorker === "technical_question_agent") {
-        return "technical_question_agent";
-      } else if (nextWorker === "followup_question_agent") {
-        return "followup_question_agent";
-      } else {
-        return END;
-      }
-    },
+    (state: InterviewStateType) => state.next,
     {
+      Interviewer: "Interviewer",
       technical_question_agent: "technical_question_agent",
       followup_question_agent: "followup_question_agent",
-      [END]: END
-    }
-  );
-
-  // 기술 질문 후, 사용자가 답변을 제공했는지 평가합니다.
-  graph.addConditionalEdges(
-    "technical_question_agent",
-    (state: InterviewStateType) => {
-      // 사용자가 답변을 제공한 경우, 먼저 평가합니다.
-      if (state.task.current_answer) {
-        return "evaluate_answer";
-      }
-      // 그렇지 않으면, 사용자 입력을 기다립니다 (슈퍼바이저로 돌아감).
-      return "supervisor";
-    },
-    {
       evaluate_answer: "evaluate_answer",
-      supervisor: "supervisor"
+      FINISH: END,
     }
   );
 
-  // 후속 질문 후, 사용자가 답변을 제공했는지 평가합니다.
-  graph.addConditionalEdges(
-    "followup_question_agent",
-    (state: InterviewStateType) => {
-      // 사용자가 답변을 제공한 경우, 먼저 평가합니다.
-      if (state.task.current_answer) {
-        return "evaluate_answer";
-      }
-      // 그렇지 않으면, 사용자 입력을 기다립니다 (슈퍼바이저로 돌아감).
-      return "supervisor";
-    },
-    {
-      evaluate_answer: "evaluate_answer",
-      supervisor: "supervisor"
-    }
-  );
-
-  // 평가 후에는 항상 다음 결정을 위해 슈퍼바이저로 돌아갑니다.
+  // 각 워커 노드가 실행된 후에는 다시 supervisor로 돌아가 다음 행동을 결정합니다.
+  graph.addEdge("Interviewer", "supervisor");
+  graph.addEdge("technical_question_agent", "supervisor");
+  graph.addEdge("followup_question_agent", "supervisor");
   graph.addEdge("evaluate_answer", "supervisor");
 
   return graph.compile();
@@ -204,6 +220,7 @@ export async function startInterview(
       final_evaluation_summary: undefined,
       last_evaluation: undefined
     },
+    next: 'supervisor', // Set the initial next node
     ...initialState
   };
 

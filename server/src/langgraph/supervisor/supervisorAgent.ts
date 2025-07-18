@@ -9,6 +9,7 @@ export function createSupervisorAgent(model: ChatGoogleGenerativeAI) {
 사용 가능한 워커:
 - technical_question_agent: 기술적 지식, 문제 해결 능력, 코딩 실력 등을 평가하기 위한 기술 질문을 생성하고 제시합니다.
 - followup_question_agent: 사용자의 이전 답변에 기반하여 더 깊이 있는 질문이나 관련된 추가 질문을 생성합니다.
+- Interviewer: 일반적인 대화를 이끌거나 다음 질문으로 넘어가기 전의 흐름을 관리합니다.
 - FINISH: 면접을 종료할 시간이라고 판단될 때 사용합니다.
 
 대화 기록:
@@ -21,6 +22,8 @@ export function createSupervisorAgent(model: ChatGoogleGenerativeAI) {
 
 사용자의 최신 입력을 바탕으로, 다음에 어떤 워커를 호출해야 할지 결정해주세요.
 'FINISH'는 면접의 흐름이 자연스럽게 마무리 단계에 접어들었을 때만 선택해야 합니다.
+
+**응답은 반드시 다음 중 하나의 단어로만 해주세요: technical_question_agent, followup_question_agent, Interviewer, FINISH**
 
 결정:
 `,

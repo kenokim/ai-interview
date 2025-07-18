@@ -1,44 +1,128 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api/interview';
+const API_BASE_URL = 'http://localhost:3000/api/interview';
 
-// Define types for API requests and responses
-// These should match the types in the backend (server/src/types/api.ts)
-interface StartInterviewRequest {
-  initial_state?: Record<string, any>;
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// API 응답 형식에 대한 인터페이스 정의
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+  details?: string[];
 }
 
-interface SendMessageRequest {
+// 면접 시작 요청 데이터 타입
+interface StartInterviewPayload {
+  jobRole: string;
+  experience: string;
+  interviewType: string;
+  resume?: string;
+  jobDescription?: string;
+  userName?: string;
+}
+
+// 면접 시작 응답 데이터 타입
+interface StartInterviewData {
+  sessionId: string;
+  initial_message: string;
+  stage: string;
+}
+
+// 메시지 전송 요청 데이터 타입
+interface SendMessagePayload {
   sessionId: string;
   message: string;
 }
 
-interface EndInterviewRequest {
+// 메시지 전송 응답 데이터 타입
+interface SendMessageData {
+  response: string;
+  stage: string;
+}
+
+// 면접 종료 요청 데이터 타입
+interface EndInterviewPayload {
   sessionId: string;
 }
 
-// API functions
-export const startInterview = async (data: StartInterviewRequest) => {
-  const response = await axios.post(`${API_URL}/start`, data);
-  return response.data;
+// 면접 종료 응답 데이터 타입
+interface EndInterviewData {
+  message: string;
+  finalEvaluation: {
+    overallScore: number;
+    summary: string;
+  };
+}
+
+// 세션 상태 응답 데이터 타입
+interface SessionStatusData {
+  sessionId: string;
+  stage: string;
+  turnCount: number;
+  lastEvaluation: {
+    score: number;
+    reasoning: string;
+  };
+}
+
+export const startInterview = async (
+  payload: StartInterviewPayload
+): Promise<ApiResponse<StartInterviewData>> => {
+  try {
+    const response = await apiClient.post('/start', payload);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    throw new Error('An unexpected error occurred');
+  }
 };
 
-export const sendMessage = async (data: SendMessageRequest) => {
-  const response = await axios.post(`${API_URL}/message`, data);
-  return response.data;
+export const sendMessage = async (
+  payload: SendMessagePayload
+): Promise<ApiResponse<SendMessageData>> => {
+  try {
+    const response = await apiClient.post('/message', payload);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    throw new Error('An unexpected error occurred');
+  }
 };
 
-export const getSessionStatus = async (sessionId: string) => {
-  const response = await axios.get(`${API_URL}/status/${sessionId}`);
-  return response.data;
+export const endInterview = async (
+  payload: EndInterviewPayload
+): Promise<ApiResponse<EndInterviewData>> => {
+  try {
+    const response = await apiClient.post('/end', payload);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    throw new Error('An unexpected error occurred');
+  }
 };
 
-export const endInterview = async (data: EndInterviewRequest) => {
-  const response = await axios.post(`${API_URL}/end`, data);
-  return response.data;
-};
-
-export const getAllSessions = async () => {
-  const response = await axios.get(`${API_URL}/sessions`);
-  return response.data;
+export const getSessionStatus = async (
+  sessionId: string
+): Promise<ApiResponse<SessionStatusData>> => {
+  try {
+    const response = await apiClient.get(`/status/${sessionId}`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data;
+    }
+    throw new Error('An unexpected error occurred');
+  }
 }; 

@@ -15,14 +15,14 @@ export class InterviewService {
   async startInterview(request: StartInterviewRequest): Promise<StartInterviewResponse> {
     const { jobRole, experience, interviewType, resume, jobDescription, userName } = request;
     
-    // Generate session ID
+    // 세션 ID를 생성합니다.
     const sessionId = interviewRepository.generateSessionId();
     
-    // Create interview graph
+    // 면접 그래프를 생성합니다.
     const graph = createInterviewGraph();
     interviewRepository.saveGraph(sessionId, graph);
     
-    // Prepare initial state with user context
+    // 사용자 컨텍스트를 포함한 초기 상태를 준비합니다.
     const initialState = {
       user_context: {
         user_id: sessionId,
@@ -35,11 +35,11 @@ export class InterviewService {
       }
     };
     
-    // Start the interview
+    // 면접을 시작합니다.
     const state = await startInterview(graph, initialState);
     interviewRepository.saveSession(sessionId, state);
     
-    // Get the initial AI message
+    // AI의 첫 번째 메시지를 가져옵니다.
     const lastMessage = state.messages[state.messages.length - 1];
     
     return {
@@ -61,7 +61,7 @@ export class InterviewService {
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     const { sessionId, message } = request;
     
-    // Get session data
+    // 세션 데이터를 가져옵니다.
     const currentState = interviewRepository.getSession(sessionId);
     const graph = interviewRepository.getGraph(sessionId);
     
@@ -69,11 +69,11 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
     
-    // Process user input
+    // 사용자 입력을 처리합니다.
     const updatedState = await processUserInput(graph, currentState, message);
     interviewRepository.saveSession(sessionId, updatedState);
     
-    // Get AI response
+    // AI의 응답을 가져옵니다.
     const aiResponse = updatedState.messages[updatedState.messages.length - 1];
     
     return {
@@ -123,7 +123,7 @@ export class InterviewService {
       throw new Error('Interview session not found');
     }
     
-    // Clean up session data
+    // 세션 데이터를 정리합니다.
     interviewRepository.deleteSession(sessionId);
     
     return {
@@ -163,7 +163,7 @@ export class InterviewService {
     };
   }
 
-  // Utility methods
+  // 유틸리티 메서드
   sessionExists(sessionId: string): boolean {
     return interviewRepository.sessionExists(sessionId);
   }
@@ -173,5 +173,5 @@ export class InterviewService {
   }
 }
 
-// Singleton instance
+// 싱글턴 인스턴스
 export const interviewService = new InterviewService(); 

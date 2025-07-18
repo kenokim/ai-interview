@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { interviewService } from '../services/InterviewService.js';
 import { validateStartInterview, validateMessage, validateSessionId } from '../middleware/validation.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
@@ -10,6 +10,34 @@ import {
 } from '../types/api.js';
 
 const router = Router();
+
+// Middleware for logging requests and responses for interview routes
+const logInterviewRequestResponse = (req: Request, res: Response, next: NextFunction) => {
+  const { method, originalUrl, body } = req;
+  const requestTimestamp = new Date().toISOString();
+
+  let requestLog = `[${requestTimestamp}] Request: ${method} ${originalUrl}`;
+  if (body && Object.keys(body).length > 0) {
+    requestLog += ` (Body: ${JSON.stringify(body)})`;
+  }
+  console.log(requestLog);
+
+  const originalJson = res.json;
+
+  res.json = function (payload) {
+    const responseTimestamp = new Date().toISOString();
+    let responseLog = `[${responseTimestamp}] Response: ${method} ${originalUrl} - Status: ${res.statusCode}`;
+    if (payload) {
+      responseLog += ` (Body: ${JSON.stringify(payload)})`;
+    }
+    console.log(responseLog);
+    return originalJson.call(this, payload);
+  };
+
+  next();
+};
+
+router.use(logInterviewRequestResponse);
 
 /**
  * @swagger

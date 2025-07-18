@@ -200,7 +200,12 @@ export const InterviewStateAnnotation = Annotation.Root({
       final_evaluation_summary: undefined,
       last_evaluation: undefined
     })
-  })
+  }),
+
+  next: Annotation<string>({
+    reducer: (prev, next) => next ?? prev,
+    default: () => "supervisor",
+  }),
 });
 
 export type InterviewStateType = typeof InterviewStateAnnotation.State;

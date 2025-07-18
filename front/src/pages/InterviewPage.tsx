@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, MicOff, MessageSquare, Send, Settings, LogOut, ImageOff } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, Settings, LogOut, ImageOff, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,7 +56,10 @@ const InterviewPage = () => {
   const state = location.state as InterviewState;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(() => {
+    const saved = localStorage.getItem("isChatOpen");
+    return saved ? JSON.parse(saved) : false;
+  });
   const [isRecording, setIsRecording] = useState(false);
   const [showAvatar, setShowAvatar] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -64,19 +67,39 @@ const InterviewPage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    localStorage.setItem("isChatOpen", JSON.stringify(isChatOpen));
+  }, [isChatOpen]);
+
+  useEffect(() => {
     const initializeInterview = async () => {
       if (state) {
         try {
-          const response = await startInterview({ initial_state: state });
+          const getExperienceLevel = (exp: number): string => {
+            if (exp <= 2) return 'junior';
+            if (exp <= 5) return 'mid-level';
+            return 'senior';
+          };
+
+          const payload = {
+            jobRole: state.jobRole,
+            experience: getExperienceLevel(state.experience),
+            interviewType: state.interviewType,
+            resume: state.resume,
+            jobDescription: state.jobDescription,
+            userName: "사용자", // userName 필드 추가
+          };
+
+          const response = await startInterview(payload);
           if (response.success) {
             setSessionId(response.data.sessionId);
             setChatMessages([{ type: 'ai', message: response.data.initial_message }]);
           } else {
-            // Handle error
             console.error("Failed to start interview:", response.error);
+            setChatMessages([{ type: 'ai', message: "면접 시작에 실패했습니다. 잠시 후 다시 시도해주세요." }]);
           }
         } catch (error) {
           console.error("Error starting interview:", error);
+          setChatMessages([{ type: 'ai', message: "서버와 통신 중 오류가 발생했습니다." }]);
         } finally {
           setIsLoading(false);
         }
@@ -118,7 +141,6 @@ const InterviewPage = () => {
         navigate('/report', { state: { sessionId } });
       } catch (error) {
         console.error("Error ending interview:", error);
-        // Still navigate to report page even if ending fails
         navigate('/report', { state: { sessionId } });
       }
     } else {
@@ -131,47 +153,39 @@ const InterviewPage = () => {
       handleSendMessage();
     }
   };
-  
+
   const toggleRecording = () => {
     setIsRecording(!isRecording);
   };
 
   const getInterviewTypeDisplay = () => {
-    return interviewType === 'technical' ? '기술면접' : '컬쳐핏면접';
+    return state?.interviewType === 'technical' ? '기술면접' : '컬쳐핏면접';
   };
-
+  
   if (!state) {
-    return null; // or a loading spinner
+    return null; 
   }
 
   const { resume, jobDescription, jobRole, interviewType, experience } = state;
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
-      {/* Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-indigo-500/10 -z-10"></div>
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
 
-      {/* Main Content Area */}
       <div className={`flex-1 flex flex-col transition-all duration-500 ease-in-out ${isChatOpen ? 'w-3/5' : 'w-full'}`}>
-        {/* Header */}
         <div className="relative z-10 p-6 flex items-center justify-between">
           <Sheet>
             <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                className="text-white hover:bg-white/10"
-              >
+              <Button variant="ghost" className="text-white hover:bg-white/10">
                 <Settings className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="bg-white text-black">
               <SheetHeader>
                 <SheetTitle>현재 면접 설정</SheetTitle>
-                <SheetDescription>
-                  현재 진행중인 면접의 설정 정보입니다.
-                </SheetDescription>
+                <SheetDescription>현재 진행중인 면접의 설정 정보입니다.</SheetDescription>
               </SheetHeader>
               <div className="py-4 space-y-6 text-sm">
               <div>
@@ -189,17 +203,13 @@ const InterviewPage = () => {
               <div>
                 <Label htmlFor="resume-display" className="text-base font-semibold">이력서</Label>
                 <div id="resume-display" className="p-2 mt-1 overflow-y-auto rounded-md border bg-gray-50 max-h-48">
-                  <pre className="text-xs whitespace-pre-wrap font-sans">
-                    {resume || '제출되지 않음'}
-                  </pre>
+                  <pre className="text-xs whitespace-pre-wrap font-sans">{resume || '제출되지 않음'}</pre>
                 </div>
               </div>
               <div>
                 <Label htmlFor="jd-display" className="text-base font-semibold">채용 공고</Label>
                 <div id="jd-display" className="p-2 mt-1 overflow-y-auto rounded-md border bg-gray-50 max-h-48">
-                  <pre className="text-xs whitespace-pre-wrap font-sans">
-                    {jobDescription || '제출되지 않음'}
-                  </pre>
+                  <pre className="text-xs whitespace-pre-wrap font-sans">{jobDescription || '제출되지 않음'}</pre>
                 </div>
               </div>
             </div>
@@ -207,29 +217,19 @@ const InterviewPage = () => {
           </Sheet>
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => setIsChatOpen(!isChatOpen)}
-              className="text-white hover:bg-white/10"
-            >
+            <Button variant="ghost" onClick={() => setIsChatOpen(!isChatOpen)} className="text-white hover:bg-white/10">
               <MessageSquare className="h-5 w-5" />
             </Button>
-
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="text-white hover:bg-red-500/20"
-                >
+                <Button variant="ghost" className="text-white hover:bg-red-500/20">
                   <LogOut className="h-5 w-5" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>면접을 종료하시겠습니까?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    종료하시면, 면접 내용에 대한 최종 리포트 화면으로 이동합니다.
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>종료하시면, 면접 내용에 대한 최종 리포트 화면으로 이동합니다.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>취소</AlertDialogCancel>
@@ -240,10 +240,8 @@ const InterviewPage = () => {
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="relative z-10 flex-1 flex items-center justify-center px-6">
           <div className="text-center space-y-8">
-            {/* Interviewer Avatar */}
             <div className="relative" onClick={() => setShowAvatar(!showAvatar)}>
               <div className="w-64 h-64 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105">
                 <div className="w-[15.25rem] h-[15.25rem] bg-gradient-to-br from-blue-300 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
@@ -260,8 +258,6 @@ const InterviewPage = () => {
                 </div>
               )}
             </div>
-
-            {/* Voice Controls */}
             <div className="flex justify-center pt-8">
               <Button
                 onClick={toggleRecording}
@@ -272,33 +268,24 @@ const InterviewPage = () => {
                     : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                {isRecording ? <MicOff className="h-16 w-16" /> : <Mic className="h-16 w-16" />}
+                {isRecording ? <MicOff className="h-20 w-20" /> : <Mic className="h-20 w-20" />}
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Chat Panel */}
       <div className={`flex flex-col bg-white/5 backdrop-blur-xl border-l border-white/10 text-white shadow-2xl transition-all duration-500 ease-in-out z-50 overflow-hidden whitespace-nowrap ${isChatOpen ? 'w-2/5' : 'w-0'}`}>
         <div className={`w-full h-full flex flex-col transition-opacity duration-300 ease-in-out ${isChatOpen ? 'opacity-100 delay-200' : 'opacity-0'}`}>
-          {/* Chat Header */}
-          <div className="p-4 border-b border-white/10 flex-shrink-0">
+          <div className="p-4 border-b border-white/10 flex-shrink-0 bg-white/10">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">면접 채팅</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsChatOpen(false)}
-                className="text-gray-400 hover:text-white"
-              >
+              <Button variant="ghost" size="sm" onClick={() => setIsChatOpen(false)} className="text-gray-400 hover:text-white">
                 ✕
               </Button>
             </div>
           </div>
-
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-black/10">
             {isLoading && chatMessages.length === 0 && (
               <div className="text-center py-10">
                 <p>면접을 준비중입니다...</p>
@@ -322,24 +309,42 @@ const InterviewPage = () => {
                 )}
               </div>
             ))}
+            {isLoading && chatMessages.length > 0 && (
+              <div className="flex items-start gap-3">
+                <Avatar className="w-8 h-8 border border-white/20">
+                  <AvatarImage src={AndrewNg} alt="AI Interviewer" />
+                  <AvatarFallback className="bg-gray-700 text-xs">AI</AvatarFallback>
+                </Avatar>
+                <div className="max-w-[80%] p-3 rounded-2xl bg-gray-800/80 text-gray-200 rounded-bl-none">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">생각 중...</span>
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-fast"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-medium"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse-slow"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Chat Input */}
-          <div className="p-4 border-t border-white/10 flex-shrink-0">
+          <div className="p-4 border-t border-white/10 flex-shrink-0 bg-white/10">
             <div className="relative">
               <Input
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="메시지를 입력하세요..."
+                placeholder="답변을 입력하세요..."
                 className="bg-gray-800/80 border-gray-700 rounded-full h-11 pr-12"
+                disabled={isLoading}
               />
               <Button
                 onClick={handleSendMessage}
                 size="icon"
-                className="absolute top-1/2 right-2 -translate-y-1/2 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white"
+                className="absolute top-1/2 right-2 -translate-y-1/2 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400"
+                disabled={isLoading || !currentMessage.trim()}
               >
-                <Send className="h-4 w-4" />
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </div>
