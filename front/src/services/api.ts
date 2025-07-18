@@ -30,7 +30,7 @@ interface StartInterviewPayload {
 // 면접 시작 응답 데이터 타입
 interface StartInterviewData {
   sessionId: string;
-  initial_message: string;
+  message: string;
   stage: string;
 }
 

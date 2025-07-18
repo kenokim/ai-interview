@@ -30,9 +30,8 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 {
   "success": true,
   "data": {
-    "sessionId": "session_1704067200000_abc123",
-    "initial_message": "안녕하세요! 오늘 면접에 참여해주셔서 감사합니다...",
-    "stage": "Greeting"
+    "sessionId": "interview_1721286000000_a1b2c3d4e",
+    "initialMessage": "안녕하세요! 오늘 면접에 참여해주셔서 감사합니다. 준비되셨으면 시작하겠습니다."
   }
 }
 ```
@@ -50,7 +49,7 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 
 ```json
 {
-  "sessionId": "session_1704067200000_abc123",
+  "sessionId": "interview_1721286000000_a1b2c3d4e",
   "message": "네, 면접 준비가 되었습니다."
 }
 ```
@@ -61,8 +60,8 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 {
   "success": true,
   "data": {
-    "response": "좋습니다! 그럼 첫 번째 질문을 드리겠습니다...",
-    "stage": "Questioning"
+    "response": "좋습니다! 그럼 첫 번째 질문을 드리겠습니다. JavaScript의 클로저에 대해 설명해주시겠어요?",
+    "completed": false
   }
 }
 ```
@@ -71,7 +70,7 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 
 ### 3. 세션 상태 조회
 
-특정 면접 세션의 현재 상태를 조회합니다.
+특정 면접 세션의 현재 상태(State) 전체를 조회합니다.
 
 -   **엔드포인트**: `GET /api/interview/status/:sessionId`
 
@@ -81,13 +80,24 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 {
   "success": true,
   "data": {
-    "sessionId": "session_1704067200000_abc123",
-    "stage": "Questioning",
-    "turnCount": 3,
-    "lastEvaluation": {
-      "score": 8.5,
-      "reasoning": "정확한 기술적 설명"
-    }
+    "user_context": {
+      "user_id": "interview_1721286000000_a1b2c3d4e",
+      "profile": {
+        "name": "김개발",
+        "experience_level": "mid-level",
+        "tech_stack": ["Frontend Developer"]
+      }
+    },
+    "messages": [
+      { "type": "human", "content": "네, 면접 준비가 되었습니다." },
+      { "type": "ai", "content": "좋습니다! 그럼 첫 번째 질문을 드리겠습니다..." }
+    ],
+    "task": {
+      "interview_stage": "Questioning",
+      "current_question": { "id": "q1", "content": "..." },
+      "questions_asked": [ { "id": "q1", "content": "..." } ]
+    },
+    "next": "FINISH"
   }
 }
 ```
@@ -96,7 +106,7 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 
 ### 4. 면접 종료
 
-면접 세션을 종료하고 최종 결과를 요청합니다.
+면접 세션을 수동으로 종료하고 간단한 요약 메시지를 받습니다.
 
 -   **엔드포인트**: `POST /api/interview/end`
 -   **Content-Type**: `application/json`
@@ -105,7 +115,7 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 
 ```json
 {
-  "sessionId": "session_1704067200000_abc123"
+  "sessionId": "interview_1721286000000_a1b2c3d4e"
 }
 ```
 
@@ -115,11 +125,7 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 {
   "success": true,
   "data": {
-    "message": "Interview session ended successfully.",
-    "finalEvaluation": {
-      "overallScore": 8.5,
-      "summary": "전반적으로 우수한 기술적 지식을 보여주었습니다."
-    }
+    "summary": "면접이 완료되었습니다. 총 15개의 메시지가 교환되었습니다."
   }
 }
 ```
@@ -128,7 +134,7 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
 
 ### 5. 모든 세션 목록 조회 (디버깅용)
 
-현재 서버에 활성화된 모든 면접 세션 목록을 조회합니다.
+현재 서버에 저장된 모든 면접 세션의 ID 목록을 조회합니다.
 
 -   **엔드포인트**: `GET /api/interview/sessions`
 
@@ -139,12 +145,10 @@ Express 기반 AI 면접 서버의 REST API 문서입니다.
   "success": true,
   "data": {
     "sessions": [
-      {
-        "sessionId": "session_1704067200000_abc123",
-        "stage": "Questioning"
-      }
+      "interview_1721286000000_a1b2c3d4e",
+      "interview_1721286000000_f5g6h7i8j"
     ],
-    "totalSessions": 1
+    "totalSessions": 2
   }
 }
 ```
@@ -158,9 +162,7 @@ API 요청이 실패할 경우, 모든 엔드포인트는 다음 형식의 응�
 ```json
 {
   "success": false,
-  "error": "에러 메시지 (예: Validation failed)",
-  "details": [
-    "상세 에러 내용 (예: sessionId is required)"
-  ]
+  "error": "에러 메시지 (예: Session not found)",
+  "timestamp": "2025-07-18T08:00:00.000Z"
 }
 ``` 

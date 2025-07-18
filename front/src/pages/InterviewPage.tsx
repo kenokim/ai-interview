@@ -94,7 +94,7 @@ const InterviewPage = () => {
           const response = await startInterview(payload);
           if (response.success) {
             setSessionId(response.data.sessionId);
-            setChatMessages([{ id: Date.now(), type: 'ai', message: response.data.initial_message }]);
+            setChatMessages([{ id: Date.now(), type: 'ai', message: response.data.message }]);
           } else {
             console.error("Failed to start interview:", response.error);
             setChatMessages([{ id: Date.now(), type: 'ai', message: "면접 시작에 실패했습니다. 잠시 후 다시 시도해주세요." }]);
