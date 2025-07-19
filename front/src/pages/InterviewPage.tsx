@@ -297,13 +297,13 @@ const InterviewPage = () => {
               <Button
                 onClick={toggleRecording}
                 size="lg"
-                className={`rounded-full w-24 h-24 flex items-center justify-center ${
+                className={`rounded-full w-20 h-20 flex items-center justify-center ${
                   isRecording 
                     ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                     : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                {isRecording ? <MicOff className="h-20 w-20" /> : <Mic className="h-20 w-20" />}
+                {isRecording ? <MicOff className="h-12 w-12" /> : <Mic className="h-12 w-12" />}
               </Button>
             </div>
           </div>

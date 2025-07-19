@@ -23,7 +23,7 @@ const evaluationPrompt = `당신은 면접관의 답변 평가 어시스턴트�
 
 JSON 출력:`;
 
-export const evaluateAnswer = async (state: InterviewState) => {
+export const evaluateAnswerAgent = async (state: InterviewState) => {
   console.log("🧐 Evaluating answer...");
   const { messages, current_question } = state;
   const lastMessage = messages[messages.length - 1];
