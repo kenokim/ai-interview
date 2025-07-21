@@ -18,7 +18,7 @@ import {
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import AndrewNg from "@/assets/andrew-ng.jpg";
+import InterviewerImage from "@/assets/interviewer.png";
 import { startInterview, sendMessage, endInterview } from "@/services/api";
 
 interface InterviewState {
@@ -38,6 +38,7 @@ type ChatMessage = {
 
 const getJobRoleDisplay = (role: string) => {
   const roles: { [key: string]: string } = {
+    'typescript': 'TypeScript 개발자',
     'ai_agent': 'AI Agent 개발자',
     'frontend': '프론트엔드 개발자',
     'backend': '백엔드 개발자',
@@ -63,7 +64,7 @@ const InterviewPage = () => {
     return saved ? JSON.parse(saved) : false;
   });
   const [isRecording, setIsRecording] = useState(false);
-  const [showAvatar, setShowAvatar] = useState(false);
+  const [showAvatar, setShowAvatar] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -75,6 +76,16 @@ const InterviewPage = () => {
   useEffect(() => {
     const initializeInterview = async () => {
       if (state) {
+        const thinkingMessageId = Date.now();
+        setChatMessages([
+          {
+            id: thinkingMessageId,
+            type: 'ai',
+            message: '...',
+            isThinking: true,
+          },
+        ]);
+
         try {
           const getExperienceLevel = (exp: number): string => {
             if (exp <= 2) return 'junior';
@@ -88,7 +99,7 @@ const InterviewPage = () => {
             interviewType: state.interviewType,
             resume: state.resume,
             jobDescription: state.jobDescription,
-            userName: "사용자", // userName 필드 추가
+            userName: "사용자",
           };
 
           console.log("Interview Start Request:", payload);
@@ -97,16 +108,32 @@ const InterviewPage = () => {
 
           if (response && response.sessionId) {
             setSessionId(response.sessionId);
-            setChatMessages([{ id: Date.now(), type: 'ai', message: response.message }]);
+            setChatMessages(prev =>
+              prev.map(msg =>
+                msg.id === thinkingMessageId
+                  ? { ...msg, message: response.message, isThinking: false }
+                  : msg
+              )
+            );
           } else {
             console.error("Failed to start interview: Invalid response structure", response);
-            setChatMessages([{ id: Date.now(), type: 'ai', message: "면접 시작에 실패했습니다. 서버 응답이 올바르지 않습니다." }]);
+            setChatMessages(prev =>
+              prev.map(msg =>
+                msg.id === thinkingMessageId
+                  ? { ...msg, message: "면접 시작에 실패했습니다. 서버 응답이 올바르지 않습니다.", isThinking: false }
+                  : msg
+              )
+            );
           }
         } catch (error) {
           console.error("Error starting interview:", error);
-          setChatMessages([{ id: Date.now(), type: 'ai', message: "서버와 통신 중 오류가 발생했습니다." }]);
-        } finally {
-          // setIsLoading(false); // This line is removed as per the new_code
+          setChatMessages(prev =>
+            prev.map(msg =>
+              msg.id === thinkingMessageId
+                ? { ...msg, message: "서버와 통신 중 오류가 발생했습니다.", isThinking: false }
+                : msg
+            )
+          );
         }
       } else {
         navigate('/');
@@ -281,7 +308,7 @@ const InterviewPage = () => {
               <div className="w-64 h-64 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105">
                 <div className="w-[15.25rem] h-[15.25rem] bg-gradient-to-br from-blue-300 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
                   {showAvatar ? (
-                    <img src={AndrewNg} alt="Andrew Ng" className="w-full h-full object-cover select-none pointer-events-none" />
+                    <img src={InterviewerImage} alt="AI Interviewer" className="w-full h-full object-cover select-none pointer-events-none" />
                   ) : (
                     <Settings className="h-24 w-24 text-white" />
                   )}
@@ -325,7 +352,7 @@ const InterviewPage = () => {
               <div key={chat.id} className={`flex items-start gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
                 {chat.type === 'ai' && (
                   <Avatar className="w-8 h-8 border border-white/20">
-                    <AvatarImage src={AndrewNg} alt="AI Interviewer" />
+                    <AvatarImage src={InterviewerImage} alt="AI Interviewer" />
                     <AvatarFallback className="bg-gray-700 text-xs">AI</AvatarFallback>
                   </Avatar>
                 )}

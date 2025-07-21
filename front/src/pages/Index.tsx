@@ -14,7 +14,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [resume, setResume] = useState('');
   const [jobDescription, setJobDescription] = useState('');
-  const [jobRole, setJobRole] = useState('ai_agent');
+  const [jobRole, setJobRole] = useState('typescript');
   const [interviewType, setInterviewType] = useState('technical');
   const [experience, setExperience] = useState([2]);
 
@@ -64,6 +64,7 @@ const Index = () => {
                     <SelectValue placeholder="직무를 선택해주세요" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="typescript">TypeScript 개발자</SelectItem>
                     <SelectItem value="ai_agent">AI Agent 개발자</SelectItem>
                     <SelectItem value="frontend">프론트엔드 개발자</SelectItem>
                     <SelectItem value="backend">백엔드 개발자</SelectItem>
