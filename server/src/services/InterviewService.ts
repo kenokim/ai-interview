@@ -34,7 +34,7 @@ export class InterviewService {
     console.log("면접을 시작합니다...");
     console.log("Received startInterview body:", body);
 
-    const initialState: InterviewStateType = {
+    const initialState = {
       messages: [], // Supervisor가 면접 시작을 감지하도록 빈 배열로 초기화합니다.
       user_context: {
         user_id: body.userName || `user_${Date.now()}`,
@@ -53,9 +53,12 @@ export class InterviewService {
         backstory: "사용자의 성공적인 기술 면접 경험을 돕기 위해 설계된 AI 에이전트입니다.",
         style_guidelines: ["전문적이고 친절한 어조를 유지합니다."],
       },
-      flow_control: {
-        // Supervisor가 모든 라우팅을 결정하도록 비워둡니다.
+      guardrails: {
+        is_safe: true,
+        fallback_count: 0
       },
+      proactive: undefined,
+      flow_control: {},
       task: {
         interview_stage: "Greeting",
         question_pool: [],
@@ -90,7 +93,7 @@ export class InterviewService {
     this.sessions.set(sessionId, newInterview);
     console.log(`선제적 면접을 트리거합니다. 이벤트: ${event_type}`);
 
-    const initialState: InterviewStateType = {
+    const initialState = {
       messages: [],
       user_context: {
         user_id: user_id,
@@ -107,14 +110,16 @@ export class InterviewService {
         backstory: "사용자의 성공적인 기술 면접 경험을 돕기 위해 설계된 AI 에이전트입니다.",
         style_guidelines: ["전문적이고 친절한 어조를 유지합니다."],
       },
+      guardrails: {
+        is_safe: true,
+        fallback_count: 0
+      },
       proactive: {
         trigger_event_type: event_type,
         trigger_event_id: event_id,
         metadata: metadata || {},
       },
-      flow_control: {
-        // Let supervisor decide
-      },
+      flow_control: {},
       task: {
         interview_stage: "Greeting",
         question_pool: [],
@@ -141,6 +146,14 @@ export class InterviewService {
     }
 
     console.log(`[${sessionId}] Received message: "${message}"`);
+
+    // 체크포인터 상태 확인
+    try {
+      const currentState = await (interview as any).getState({ configurable: { thread_id: sessionId } });
+      console.log(`[${sessionId}] 현재 체크포인트 상태:`, JSON.stringify(currentState?.values?.user_context, null, 2));
+    } catch (error) {
+      console.log(`[${sessionId}] 체크포인트 상태 조회 실패:`, error);
+    }
 
     // LangGraph 문서 근거: "Manually retrieve and update the original state"
     // invoke({})는 상태를 초기화하므로 사용하지 않습니다.

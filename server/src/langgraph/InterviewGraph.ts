@@ -1,5 +1,5 @@
-import { StateGraph, END, START } from "@langchain/langgraph";
-import { interviewStateGraph, InterviewStateType } from "../types/state.js";
+import { StateGraph, END, START, MemorySaver } from "@langchain/langgraph";
+import { InterviewStateAnnotation, InterviewStateType } from "../types/state.js";
 import { supervisorNode } from "./agents/interviewer.js";
 import { greetingAgent } from "./agents/workers/greetingAgent.js";
 import { technicalQuestionAgent } from "./agents/workers/technicalQuestionAgent.js";
@@ -18,7 +18,7 @@ export class InterviewGraph {
   private graph: any;
 
   constructor() {
-    const graphBuilder = new StateGraph(interviewStateGraph)
+    const graphBuilder = new StateGraph(InterviewStateAnnotation)
       .addNode(SUPERVISOR, supervisorNode)
       .addNode(GREETING_AGENT, greetingAgent)
       .addNode(QUESTIONING_AGENT, technicalQuestionAgent)
@@ -61,7 +61,9 @@ export class InterviewGraph {
     graphBuilder.addEdge(FEEDBACK_AGENT, SUPERVISOR);
     graphBuilder.addEdge(FAREWELL_AGENT, SUPERVISOR);
 
-    this.graph = graphBuilder.compile();
+    // 체크포인터 설정으로 상태 유지 보장
+    const checkpointer = new MemorySaver();
+    this.graph = graphBuilder.compile({ checkpointer });
   }
 
   public compile() {

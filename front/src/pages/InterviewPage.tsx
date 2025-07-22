@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mic, MicOff, MessageSquare, Send, Settings, LogOut, ImageOff, Loader2, Timer } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -406,7 +408,43 @@ const InterviewPage = () => {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-normal">{chat.message}</p>
+                    <div className="text-sm whitespace-normal prose prose-sm max-w-none prose-invert">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          // 마크다운 컴포넌트 스타일링
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          code: ({ children, className }) => {
+                            const isInline = !className;
+                            return isInline ? (
+                              <code className="bg-gray-700 px-1 py-0.5 rounded text-xs">{children}</code>
+                            ) : (
+                              <pre className="bg-gray-700 p-2 rounded text-xs overflow-x-auto">
+                                <code>{children}</code>
+                              </pre>
+                            );
+                          },
+                          ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                          li: ({ children }) => <li className="mb-1">{children}</li>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          em: ({ children }) => <em className="italic">{children}</em>,
+                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-2 border-gray-500 pl-2 italic mb-2">{children}</blockquote>
+                          ),
+                          a: ({ children, href }) => (
+                            <a href={href} className="text-blue-300 hover:text-blue-200 underline" target="_blank" rel="noopener noreferrer">
+                              {children}
+                            </a>
+                          ),
+                        }}
+                      >
+                        {chat.message}
+                      </ReactMarkdown>
+                    </div>
                   )}
                 </div>
                 {chat.type === 'user' && (

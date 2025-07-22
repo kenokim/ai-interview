@@ -1,5 +1,5 @@
 import { BaseMessage } from "@langchain/core/messages";
-import { StateGraph, StateGraphArgs } from "@langchain/langgraph";
+import { Annotation } from "@langchain/langgraph";
 
 /** 사용자 식별 및 프로필 정보 */
 export interface UserContext {
@@ -41,7 +41,7 @@ export interface GuardrailState {
 export interface ProactiveContext {
   /** 대화 시작의 원인 (예: "interview_reminder") */
   trigger_event_type: string;
-  /** 중복 실행 방지를 위한 이벤트 고유 ID */
+  /** 대화 시작의 원인 (예: "interview_reminder") */
   trigger_event_id: string;
   /** 이벤트 관련 추가 정보 (예: 면접 시간) */
   metadata: Record<string, any>;
@@ -89,89 +89,82 @@ export interface EvaluationState {
   final_evaluation_summary?: string;
 }
 
-/**
- * AI 면접관 챗봇의 모든 상태를 포괄하는 최상위 통합 상태 인터페이스입니다.
- */
-export interface InterviewState {
+// LangGraph Annotation을 사용한 상태 정의
+export const InterviewStateAnnotation = Annotation.Root({
   // 1. 핵심 대화 상태 (모든 상호작용의 기반)
-  messages: BaseMessage[];
-  user_context: UserContext;
+  messages: Annotation<BaseMessage[]>({
+    reducer: (x: BaseMessage[], y: BaseMessage[]) => x.concat(y),
+    default: () => [],
+  }),
+  
+  // 2. 사용자 컨텍스트 (특별한 profile 병합 로직 포함)
+  user_context: Annotation<UserContext>({
+    reducer: (x: UserContext, y: Partial<UserContext>) => ({
+      ...x,
+      ...y,
+      // profile 필드가 있으면 깊은 병합 수행 - 이것이 핵심 수정사항
+      profile: y?.profile ? { ...x?.profile, ...y.profile } : x?.profile
+    }),
+    default: () => ({ user_id: "" }),
+  }),
 
-  // 2. 페르소나 상태 (챗봇의 정체성)
-  persona: PersonaState;
+  // 3. 페르소나 상태 (챗봇의 정체성)
+  persona: Annotation<PersonaState>({
+    reducer: (x: PersonaState, y: Partial<PersonaState>) => ({ ...x, ...y }),
+    default: () => ({
+      name: "InterviewerAI",
+      role: "AI 기술 면접관",
+      backstory: "사용자의 성공적인 기술 면접 경험을 돕기 위해 설계된 AI 에이전트입니다.",
+      style_guidelines: ["전문적이고 친절한 어조를 유지합니다."],
+    }),
+  }),
 
-  // 3. 가드레일 및 안전 상태 (입력/출력 검증)
-  guardrails?: GuardrailState;
+  // 4. 가드레일 및 안전 상태 (입력/출력 검증)
+  guardrails: Annotation<GuardrailState | undefined>({
+    reducer: (x, y) => y ?? x,
+    default: () => ({
+      is_safe: true,
+      fallback_count: 0
+    }),
+  }),
 
-  // 4. 선제적 대화 상태 (AI가 먼저 말을 거는 경우)
-  proactive?: ProactiveContext;
+  // 5. 선제적 대화 상태 (AI가 먼저 말을 거는 경우)
+  proactive: Annotation<ProactiveContext | undefined>({
+    reducer: (x, y) => y ?? x,
+    default: () => undefined,
+  }),
 
-  // 5. 제어 흐름 상태 (그래프의 동적 라우팅)
-  flow_control: FlowControlState;
+  // 6. 제어 흐름 상태 (그래프의 동적 라우팅)
+  flow_control: Annotation<FlowControlState>({
+    reducer: (x: FlowControlState, y: Partial<FlowControlState>) => ({ ...x, ...y }),
+    default: () => ({}),
+  }),
 
-  // 6. 면접 과업 상태 (현재 작업 관리)
-  task: TaskState;
+  // 7. 면접 과업 상태 (현재 작업 관리)
+  task: Annotation<TaskState>({
+    reducer: (x: TaskState, y: Partial<TaskState>) => ({ ...x, ...y }),
+    default: () => ({
+      interview_stage: "Greeting",
+      question_pool: [],
+      questions_asked: [],
+      current_difficulty: 50,
+    }),
+  }),
 
-  // 7. 평가 및 메타데이터 상태 (성능 측정)
-  evaluation: EvaluationState;
-}
+  // 8. 평가 및 메타데이터 상태 (성능 측정)
+  evaluation: Annotation<EvaluationState>({
+    reducer: (x: EvaluationState, y: Partial<EvaluationState>) => ({ ...x, ...y }),
+    default: () => ({
+      turn_count: 0,
+    }),
+  }),
+});
 
-export const interviewStateGraph: StateGraphArgs<InterviewState> = {
-  channels: {
-    messages: {
-      value: (x, y) => x.concat(y),
-      default: () => [],
-    },
-    user_context: {
-        value: (x, y) => ({
-            ...x,
-            ...y,
-            // profile 필드가 있으면 깊은 병합 수행
-            profile: y?.profile ? { ...x?.profile, ...y.profile } : x?.profile
-        }),
-        default: () => ({ user_id: "" }),
-    },
-    persona: {
-        value: (x, y) => y,
-        default: () => ({
-            name: "InterviewerAI",
-            role: "AI 기술 면접관",
-            backstory: "사용자의 성공적인 기술 면접 경험을 돕기 위해 설계된 AI 에이전트입니다.",
-            style_guidelines: ["전문적이고 친절한 어조를 유지합니다."],
-        })
-    },
-    guardrails: {
-        value: (x, y) => ({ ...x, ...y }),
-        default: () => ({
-            is_safe: true,
-            fallback_count: 0
-        })
-    },
-    proactive: {
-        value: (x, y) => y,
-        default: () => undefined,
-    },
-    flow_control: {
-        value: (x, y) => ({ ...x, ...y }),
-        default: () => ({})
-    },
-    task: {
-        value: (x, y) => ({ ...x, ...y }),
-        default: () => ({
-            interview_stage: "Greeting",
-            question_pool: [],
-            questions_asked: [],
-            current_difficulty: 50,
-        })
-    },
-    evaluation: {
-        value: (x, y) => ({ ...x, ...y }),
-        default: () => ({
-            turn_count: 0,
-        })
-    },
-  },
-};
-
+/**
+ * AI 면접관 챗봇의 모든 상태를 포괄하는 최상위 통합 상태 타입입니다.
+ */
+export type InterviewState = typeof InterviewStateAnnotation.State;
 export type InterviewStateType = InterviewState;
-export const InterviewStateAnnotation = new StateGraph(interviewStateGraph); 
+
+// 기존 호환성을 위한 별칭
+export const interviewStateGraph = InterviewStateAnnotation; 
