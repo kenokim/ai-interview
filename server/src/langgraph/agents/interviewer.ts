@@ -110,23 +110,48 @@ export const supervisorNode = async (state: InterviewState) => {
     };
   }
 
-  // 4. LLM을 통해 다음 에이전트 결정
+  // 4. LLM을 통한 지능적인 라우팅 결정
   const lastMessageType = lastMessage instanceof AIMessage ? "AI" : "Human";
   console.log(`상태: ${task.interview_stage} / ${lastMessageType} 메시지 -> LLM으로 라우팅 결정`);
   
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     temperature: 0,
   }).pipe(new StringOutputParser());
 
   const remainingQuestions = Math.max(0, (state.task.question_pool?.length || 0) - (state.task.questions_asked?.length || 0));
+  const questionsAsked = state.task.questions_asked?.length || 0;
+  const lastMessageContent = lastMessage.content.toString().slice(0, 100); // 처음 100자만
 
-  const formattedPrompt = supervisorPrompt
-    .replace("{interview_stage}", task.interview_stage)
-    .replace("{remaining_questions}", remainingQuestions.toString())
+  const enhancedPrompt = `당신은 AI 면접관 팀의 슈퍼바이저입니다. 현재 상황을 정확히 분석하고 다음에 호출할 에이전트를 결정하세요.
+
+**현재 상황 분석:**
+- 현재 면접 단계: ${task.interview_stage}
+- 마지막 메시지 발신자: ${lastMessageType}
+- 마지막 메시지 내용: "${lastMessageContent}"
+- 지금까지 질문한 개수: ${questionsAsked}개
+- 남은 질문 개수: ${remainingQuestions}개
+
+**핵심 라우팅 규칙:**
+1. **사용자가 질문에 답변했을 때** (interview_stage: "Questioning" + 마지막 메시지: Human):
+   → **evaluation_agent** (답변을 평가해야 함)
+
+2. **평가가 완료되었을 때** (interview_stage: "Evaluating"):
+   → **feedback_agent** (평가 결과를 바탕으로 피드백 제공)
+
+3. **피드백을 제공한 후** (interview_stage: "Feedback" + 마지막 메시지: AI):
+   → **questioning_agent** (다음 질문) 또는 **farewell_agent** (질문 3개 이상 완료시)
+
+4. **사용자가 면접 시작 준비되었다고 답변** (interview_stage: "Greeting" + 마지막 메시지: Human):
+   → **questioning_agent** (첫 번째 질문 시작)
+
+**응답 형식:** 다음 중 정확히 하나만 선택하세요:
+evaluation_agent / feedback_agent / questioning_agent / farewell_agent / greeting_agent / FINISH
+
+결정:`;
 
   console.log("LLM Supervisor 호출...");
-  const response = await model.invoke(formattedPrompt);
+  const response = await model.invoke(enhancedPrompt);
   const nextNode = response.toLowerCase().trim().replace(/"/g, "");
 
   console.log(`Supervisor 결정: ${nextNode}`);

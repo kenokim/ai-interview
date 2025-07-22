@@ -43,13 +43,28 @@ export const technicalQuestionAgent = async (state: InterviewState) => {
   console.log("기술 질문 에이전트가 질문을 생성하고 있습니다.");
   const { user_context, task } = state;
 
+  // 이전 평가 결과에 따른 질문 유형 결정
+  const isFollowUpNeeded = task.agent_outcome?.is_sufficient === false;
+  const questionType = isFollowUpNeeded ? "follow_up" : "new_question";
+  
+  console.log(`질문 유형: ${questionType} (이전 답변 충족도: ${task.agent_outcome?.is_sufficient})`);
+
   // Dynamic Difficulty Adjustment (DDA) 로직
   let newDifficulty = task.current_difficulty;
   if (task.agent_outcome?.overall_score) {
     const score = task.agent_outcome.overall_score;
-    const adjustment = (score - 3) * 5;
-    newDifficulty = Math.max(0, Math.min(100, task.current_difficulty + adjustment));
-    console.log(`난이도 조정: ${task.current_difficulty} -> ${newDifficulty} (평가 점수: ${score})`);
+    
+    if (questionType === "follow_up") {
+      // 꼬리질문이나 쉬운 질문의 경우 난이도를 더 크게 조정
+      const adjustment = score < 2 ? -15 : -10; // 점수가 매우 낮으면 크게 낮춤
+      newDifficulty = Math.max(0, Math.min(100, task.current_difficulty + adjustment));
+      console.log(`꼬리질문/쉬운 질문으로 난이도 조정: ${task.current_difficulty} -> ${newDifficulty}`);
+    } else {
+      // 일반적인 다음 질문의 경우
+      const adjustment = (score - 3) * 5;
+      newDifficulty = Math.max(0, Math.min(100, task.current_difficulty + adjustment));
+      console.log(`다음 질문으로 난이도 조정: ${task.current_difficulty} -> ${newDifficulty} (평가 점수: ${score})`);
+    }
   }
 
   const model = new ChatGoogleGenerativeAI({
@@ -61,37 +76,80 @@ export const technicalQuestionAgent = async (state: InterviewState) => {
     .map(q => typeof q === 'string' ? q : q.text || JSON.stringify(q))
     .join(", ") || "없음";
 
-  // 1. Chain of Thought - Reasoning Step
-  console.log("1단계: 질문 주제 및 이유 추론 중...");
-  const reasoningParser = new JsonOutputParser<{ reasoning: string, question_topic: string }>();
-  const reasoningChain = model.pipe(reasoningParser);
-  
-  const reasoningFormattedPrompt = reasoningPrompt
-    .replace("{user_profile}", JSON.stringify(user_context.profile) || "정보 없음")
-    .replace("{current_difficulty}", newDifficulty.toString())
-    .replace("{questions_asked}", questionsAskedText);
+  let question = "";
+  let questionTopic = "";
 
-  const reasoningResult = await reasoningChain.invoke(reasoningFormattedPrompt);
-  console.log("추론 결과:", reasoningResult);
+  if (questionType === "follow_up") {
+    // 꼬리질문 또는 더 쉬운 질문 생성
+    console.log("꼬리질문 또는 더 쉬운 질문을 생성합니다...");
+    const parser = new StringOutputParser();
+    const chain = model.pipe(parser);
+    
+    const followUpPrompt = `당신은 전문 기술 면접관입니다. 이전 질문에 대한 사용자의 답변이 불충분했습니다.
 
-  // 2. Chain of Thought - Generation Step
-  console.log("2단계: 최종 질문 생성 중...");
-  const generationParser = new StringOutputParser();
-  const generationChain = model.pipe(generationParser);
+**이전 질문:** {previous_question}
+**사용자의 답변 평가 점수:** {evaluation_score} (1-5점)
+**사용자 프로필:** {user_profile}
+**새로운 난이도:** {new_difficulty} (0-100, 낮을수록 쉬움)
 
-  const generationFormattedPrompt = generationPrompt
-    .replace("{reasoning}", reasoningResult.reasoning)
-    .replace("{question_topic}", reasoningResult.question_topic);
+**당신의 임무:**
+${task.agent_outcome?.overall_score < 2 
+  ? `1. 먼저 "네, 그럼 조금 더 쉬운 질문을 드리겠습니다. 이해하기 쉬운 기본적인 개념부터 차근차근 접근해 보겠습니다."라고 피드백을 제공하세요.
+2. 그 다음 이전 질문보다 훨씬 쉬운 기본 개념 질문을 생성하세요.`
+  : `1. 먼저 "음, 조금 더 구체적으로 설명해 주실 수 있을까요? 혹시 실제 경험이나 예시가 있다면 함께 말씀해 주세요."라고 피드백을 제공하세요.
+2. 그 다음 이전 질문과 관련된 꼬리질문이나 구체적인 예시를 요구하는 질문을 생성하세요.`
+}
 
-  const question = await generationChain.invoke(generationFormattedPrompt);
+**응답 형식:**
+[피드백 메시지]
+
+[새로운 질문]
+
+응답:`;
+
+    const formattedFollowUpPrompt = followUpPrompt
+      .replace("{previous_question}", task.current_question?.text || "이전 질문")
+      .replace("{evaluation_score}", task.agent_outcome?.overall_score?.toString() || "알 수 없음")
+      .replace("{user_profile}", JSON.stringify(user_context.profile) || "정보 없음")
+      .replace("{new_difficulty}", newDifficulty.toString());
+
+    question = await chain.invoke(formattedFollowUpPrompt);
+    questionTopic = task.agent_outcome?.overall_score < 2 ? "기본 개념 (쉬운 질문)" : "꼬리질문";
+    
+  } else {
+    // 일반적인 새로운 질문 생성 (기존 로직)
+    console.log("1단계: 질문 주제 및 이유 추론 중...");
+    const reasoningParser = new JsonOutputParser<{ reasoning: string, question_topic: string }>();
+    const reasoningChain = model.pipe(reasoningParser);
+    
+    const reasoningFormattedPrompt = reasoningPrompt
+      .replace("{user_profile}", JSON.stringify(user_context.profile) || "정보 없음")
+      .replace("{current_difficulty}", newDifficulty.toString())
+      .replace("{questions_asked}", questionsAskedText);
+
+    const reasoningResult = await reasoningChain.invoke(reasoningFormattedPrompt);
+    console.log("추론 결과:", reasoningResult);
+
+    // 2. Chain of Thought - Generation Step
+    console.log("2단계: 최종 질문 생성 중...");
+    const generationParser = new StringOutputParser();
+    const generationChain = model.pipe(generationParser);
+
+    const generationFormattedPrompt = generationPrompt
+      .replace("{reasoning}", reasoningResult.reasoning)
+      .replace("{question_topic}", reasoningResult.question_topic);
+
+    question = await generationChain.invoke(generationFormattedPrompt);
+    questionTopic = reasoningResult.question_topic;
+  }
 
   console.log(`기술 질문이 생성되었습니다: ${question}`);
   
   const questionObj = {
     text: question,
-    type: "technical",
+    type: questionType === "follow_up" ? "follow_up" : "technical",
     difficulty: newDifficulty,
-    topic: reasoningResult.question_topic
+    topic: questionTopic
   };
 
   return {

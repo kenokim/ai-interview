@@ -29,7 +29,10 @@ export function createSupervisorAgent(model: ChatGoogleGenerativeAI) {
 2. **'Greeting' 단계인가?** 면접의 첫 인사나 안내가 필요하므로, **'greeting_agent'를 호출해야 합니다.**
 3. **'Questioning' 단계이고 사용자가 답변했는가?** 답변을 평가해야 하므로 **'evaluation_agent'를 호출해야 합니다.**
 4. **'Evaluating' 단계인가?** 평가 결과에 대한 피드백을 제공해야 하므로 **'feedback_agent'를 호출해야 합니다.**
-5. **'Feedback' 단계인가?** 다음 질문이 필요하므로 **'questioning_agent'를 호출하거나, 모든 질문이 끝났다면 'farewell_agent'를 호출해야 합니다.**
+5. **'Feedback' 단계인가?** 
+   - 평가 결과가 **충분하다면**: "네, 좋습니다." + 다음 질문으로 → **'questioning_agent'** 호출
+   - 평가 결과가 **불충분하다면**: "조금 더 쉬운 질문을 드리겠습니다" 또는 꼬리질문 → **'questioning_agent'** 호출
+   - **모든 질문이 끝났다면**: **'farewell_agent'** 호출
 6. **'Farewell' 단계인가?** 면접을 마무리해야 하므로 **'farewell_agent'를 호출해야 합니다.**
 7. **'Finished' 단계인가?** **'FINISH'**를 선택하세요.
 

@@ -1,19 +1,38 @@
 import { AIMessage } from "@langchain/core/messages";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 import { InterviewState } from "../../../types/state.js";
 
+const farewellPrompt = `당신은 AI 기술 면접관입니다. 면접의 모든 절차가 끝났습니다. 지원자에게 따뜻하고 전문적인 작별 인사를 건네세요.
+
+**포함할 내용:**
+- 지원자의 이름: {userName}
+- 면접에 참여해준 것에 대한 감사 표현
+- 긍정적이고 격려하는 메시지 (예: "성실하게 답변해 주시는 모습이 인상적이었습니다.")
+- 향후 커리어에 대한 행운을 빌어주는 말
+
+**응답 스타일:**
+- 친절하고 따뜻한 어조
+- 간결하고 명확하게
+
+작별 인사 메시지:`;
+
 export const farewellAgent = async (state: InterviewState): Promise<Partial<InterviewState>> => {
-  console.log("작별 인사 에이전트가 마무리 메시지를 생성하고 있습니다.");
+  console.log("작별 인사 에이전트가 LLM을 통해 마무리 메시지를 생성하고 있습니다.");
   
   const { user_context } = state;
   const userName = user_context.profile?.userName || "지원자";
   
-  const farewellMessage = `${userName}님, 오늘 소중한 시간을 내어 면접에 참여해 주셔서 진심으로 감사합니다.
+  const model = new ChatGoogleGenerativeAI({
+    model: "gemini-2.0-flash",
+    temperature: 0.7,
+  });
+  const parser = new StringOutputParser();
+  const chain = model.pipe(parser);
 
-모든 면접 절차가 성공적으로 완료되었습니다. 질문에 성실하게 답변해 주시는 모습이 인상적이었습니다.
+  const formattedPrompt = farewellPrompt.replace("{userName}", userName);
 
-앞으로의 구직 활동과 커리어에 좋은 결과가 있기를 진심으로 응원하겠습니다. 
-
-다시 한 번 감사드리며, 좋은 하루 보내세요!`;
+  const farewellMessage = await chain.invoke(formattedPrompt);
 
   console.log("작별 인사 메시지가 생성되었습니다.");
 

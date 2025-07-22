@@ -58,7 +58,7 @@ export interface FlowControlState {
 /** 현재 면접 과업과 관련된 구체적인 정보 */
 export interface TaskState {
   /** 면접의 현재 단계 */
-  interview_stage: "Greeting" | "Questioning" | "Feedback" | "Farewell" | "Finished";
+  interview_stage: "Greeting" | "Questioning" | "Evaluating" | "Feedback" | "Farewell" | "Finished";
   /** 전체 질문 목록. 각 질문 객체는 'difficulty': number (0-100) 필드를 포함해야 함. */
   question_pool: Record<string, any>[];
   /** 이미 질문한 목록 */

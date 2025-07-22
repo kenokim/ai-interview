@@ -2,7 +2,7 @@ import { AIMessage } from "@langchain/core/messages";
 import { InterviewState } from "../../../types/state.js";
 
 export const feedbackAgent = async (state: InterviewState): Promise<Partial<InterviewState>> => {
-  console.log("피드백 에이전트가 피드백을 생성하고 있습니다.");
+  console.log("피드백 에이전트가 평가 결과에 따른 피드백을 생성하고 있습니다.");
   
   const { task } = state;
   const evaluationResult = task.agent_outcome;
@@ -15,30 +15,39 @@ export const feedbackAgent = async (state: InterviewState): Promise<Partial<Inte
       messages: [...state.messages, new AIMessage(defaultFeedback)],
       task: {
         ...state.task,
-        interview_stage: "Feedback"
+        interview_stage: "Feedback",
+        agent_outcome: { ...evaluationResult, is_sufficient: true } // 기본값으로 충분하다고 설정
       }
     };
   }
   
-  // 강점 먼저 강조하는 피드백 생성
-  let feedbackMessage = "답변해 주셔서 감사합니다! ";
+  let feedbackMessage = "";
+  let isSufficient = true; // 답변이 충분한지 여부
   
-  // 점수가 4 이상이면 강점 강조
+  // 평가 점수에 따른 피드백 생성
   if (evaluationResult.overall_score >= 4) {
-    feedbackMessage += `특히 답변의 구체성과 설명력이 매우 좋았습니다. `;
+    // 충분한 답변 - 다음 질문으로 넘어감
+    feedbackMessage = "네, 좋습니다! 정확하고 구체적인 답변이었습니다. 다음 질문을 드리겠습니다.";
+    isSufficient = true;
+    console.log("답변이 충분합니다. 다음 질문으로 진행합니다.");
   } else if (evaluationResult.overall_score >= 3) {
-    feedbackMessage += `전반적인 접근 방식은 올바른 방향이었습니다. `;
+    // 보통 답변 - 다음 질문으로 넘어감
+    feedbackMessage = "네, 기본적인 이해는 잘 되어 있는 것 같습니다. 다음 질문을 드리겠습니다.";
+    isSufficient = true;
+    console.log("답변이 보통 수준입니다. 다음 질문으로 진행합니다.");
+  } else if (evaluationResult.overall_score >= 2) {
+    // 부족한 답변 - 꼬리질문 또는 더 쉬운 질문
+    feedbackMessage = "음, 조금 더 구체적으로 설명해 주실 수 있을까요? 혹시 실제 경험이나 예시가 있다면 함께 말씀해 주세요.";
+    isSufficient = false;
+    console.log("답변이 부족합니다. 꼬리질문을 진행합니다.");
+  } else {
+    // 매우 부족한 답변 - 더 쉬운 질문으로 변경
+    feedbackMessage = "네, 그럼 조금 더 쉬운 질문을 드리겠습니다. 이해하기 쉬운 기본적인 개념부터 차근차근 접근해 보겠습니다.";
+    isSufficient = false;
+    console.log("답변이 매우 부족합니다. 더 쉬운 질문으로 변경합니다.");
   }
   
-  // 개선점 제안 (점수가 3 미만인 경우)
-  if (evaluationResult.overall_score < 3) {
-    feedbackMessage += `다음 번에는 조금 더 구체적인 예시나 실제 경험을 포함하여 답변해 주시면 더욱 좋겠습니다. `;
-  }
-  
-  // 격려로 마무리
-  feedbackMessage += "계속해서 좋은 답변 부탁드립니다!";
-  
-  console.log("피드백이 생성되었습니다.");
+  console.log(`피드백 생성 완료: ${isSufficient ? '충분' : '불충분'}`);
 
   return {
     ...state,
@@ -46,7 +55,11 @@ export const feedbackAgent = async (state: InterviewState): Promise<Partial<Inte
     messages: [...state.messages, new AIMessage(feedbackMessage)],
     task: {
       ...state.task,
-      interview_stage: "Feedback" // Supervisor가 이 상태를 보고 다음 행동을 결정합니다.
+      interview_stage: "Feedback",
+      agent_outcome: { 
+        ...evaluationResult, 
+        is_sufficient: isSufficient // 답변 충족도를 agent_outcome에 저장
+      }
     },
     evaluation: {
       ...state.evaluation,
