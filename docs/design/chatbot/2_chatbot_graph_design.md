@@ -28,48 +28,65 @@ AI 면접관을 위해 다음과 같은 5개의 Worker 에이전트를 정의합
 
 ### 3.1. 그래프 다이어그램 (Mermaid)
 
-Supervisor-Worker 패턴의 제어 흐름을 시각화하면 다음과 같습니다. 모든 Worker는 작업을 완료한 후 항상 Supervisor에게 제어를 반환하여 다음 단계를 지시받습니다.
+Supervisor-Worker 패턴의 제어 흐름과 각 에이전트의 역할을 시각화하면 다음과 같습니다. 모든 Worker는 작업을 완료한 후 항상 Supervisor에게 제어를 반환하여 다음 단계를 지시받습니다.
 
 ```mermaid
 graph TD
-    subgraph "AI Interviewer Graph"
-        direction TB
-        START --> Supervisor;
+    subgraph "AI Interviewer Agent Team"
+        direction LR
+        
+        Supervisor(Supervisor: 면접 총괄)
 
-        Supervisor -- route --> Greeting;
-        Supervisor -- route --> Questioning;
-        Supervisor -- route --> Evaluating;
-        Supervisor -- route --> Feedback;
-        Supervisor -- route --> Farewell;
-        Supervisor -- End of Interview --> END;
+        subgraph "Worker Agents: 전문가"
+            direction TB
+            A[Greeting: 환영 및 준비 확인]
+            B[Questioning: 기술 질문 제시]
+            C[Evaluating: 답변 평가]
+            D[Feedback: 건설적 피드백 제공]
+            E[Farewell: 작별 인사]
+        end
 
-        Greeting -- done --> Supervisor;
-        Questioning -- done --> Supervisor;
-        Evaluating -- done --> Supervisor;
-        Feedback -- done --> Supervisor;
-        Farewell -- done --> Supervisor;
+        START --> Supervisor
+
+        Supervisor -- route --> A
+        Supervisor -- route --> B
+        Supervisor -- route --> C
+        Supervisor -- route --> D
+        Supervisor -- route --> E
+        
+        A -- done --> Supervisor
+        B -- done --> Supervisor
+        C -- done --> Supervisor
+        D -- done --> Supervisor
+        E -- done --> Supervisor
+
+        Supervisor -- End of Interview --> END
     end
 ```
 
 ### 3.2. 상호작용 시나리오 예시: 하나의 질문-답변 사이클
 
-1.  면접 시작 및 첫 질문:
-    -   (사용자 입력) → `START` → `Supervisor` 호출.
+1.  **환영 및 준비 확인:**
+    -   (사용자 입장) → `START` → `Supervisor` 호출.
     -   `Supervisor`는 `task.interview_stage`가 초기 상태이므로 `Greeting` 에이전트로 라우팅.
-    -   `Greeting` 에이전트가 환영 인사를 생성. → `Supervisor`로 제어 반환.
-    -   `Supervisor`는 환영 인사가 끝났으므로 `Questioning` 에이전트로 라우팅.
-    -   `Questioning` 에이전트가 첫 기술 질문을 생성하여 사용자에게 제시. → `Supervisor`로 제어 반환.
-    -   `Supervisor`는 AI가 질문을 했으므로 사용자 답변을 기다리기 위해 `FINISH`를 반환, 그래프 실행 일시 중단.
+    -   `Greeting` 에이전트가 환영 인사와 함께 준비되었는지 질문. → `Supervisor`로 제어 반환.
+    -   `Supervisor`는 AI가 질문(준비 확인)을 했으므로 사용자 답변을 기다리기 위해 `FINISH`를 반환, 그래프 실행 일시 중단.
 
-2.  답변 평가 및 피드백 루프:
+2.  **첫 질문 시작:**
+    -   (사용자가 "네, 준비됐어요" 답변) → `Supervisor` 재호출.
+    -   `Supervisor`는 `task.interview_stage`가 "Greeting"이고 사용자가 응답했으므로, `Questioning` 에이전트로 라우팅.
+    -   `Questioning` 에이전트가 첫 기술 질문을 생성하여 사용자에게 제시. → `Supervisor`로 제어 반환.
+    -   `Supervisor`는 AI가 질문을 했으므로 사용자 답변을 기다리기 위해 다시 `FINISH`를 반환.
+
+3.  **답변 평가 및 피드백 루프:**
     -   (사용자 답변 입력) → `Supervisor` 재호출.
     -   `Supervisor`는 사용자가 답변했으므로 `Evaluating` 에이전트로 라우팅.
     -   `Evaluating` 에이전트가 답변을 평가하여 구조화된 결과를 상태에 저장. → `Supervisor`로 제어 반환.
     -   `Supervisor`는 평가가 완료됐으므로 `Feedback` 에이전트로 라우팅.
     -   `Feedback` 에이전트가 평가 결과를 바탕으로 사용자에게 피드백 제공. → `Supervisor`로 제어 반환.
 
-3.  다음 질문 또는 종료:
-    -   `Supervisor`는 피드백이 완료된 후, 남은 질문이 있는지(`question_pool`) 확인.
+4.  **다음 질문 또는 종료:**
+    -   `Supervisor`는 피드백이 완료된 후, 남은 질문이 있는지 확인.
     -   남은 질문이 있다면, 다시 `Questioning` 에이전트를 호출하여 다음 질문 사이클 시작. 이 때 `questioning_agent`는 최근 평가 결과에 따라 상태의 `current_difficulty`를 조정한 후, 그에 맞는 질문을 선택합니다.
     -   모든 질문이 소진되었다면, `Farewell` 에이전트를 호출하여 면접 종료 절차 시작.
 

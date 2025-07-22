@@ -59,9 +59,10 @@ export const evaluateAnswerAgent = async (state: InterviewState) => {
 
     return {
       ...state,
+      user_context: state.user_context, // 상태 유실 방지
       task: {
         ...state.task,
-        interview_stage: "Evaluating", // 평가 중 상태로 변경
+        interview_stage: "Evaluating", // 평가 완료 상태로 변경
         agent_outcome: response
       },
       evaluation: {
@@ -73,6 +74,7 @@ export const evaluateAnswerAgent = async (state: InterviewState) => {
     console.error("평가 중 오류 발생:", error);
     return {
       ...state,
+      user_context: state.user_context, // 상태 유실 방지
       task: {
         ...state.task,
         interview_stage: "Evaluating",

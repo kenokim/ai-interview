@@ -1,7 +1,8 @@
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { Runnable, RunnableConfig } from "@langchain/core/runnables";
+import { CompiledGraph } from "@langchain/langgraph";
 import {
-  InterviewStateType,
+  InterviewStateType
 } from "../types/state.js";
 import {
   StartInterviewRequest,
@@ -31,6 +32,7 @@ export class InterviewService {
     const newInterview = this.interviewGraph.compile();
     this.sessions.set(sessionId, newInterview);
     console.log("면접을 시작합니다...");
+    console.log("Received startInterview body:", body);
 
     const initialState: InterviewStateType = {
       messages: [], // Supervisor가 면접 시작을 감지하도록 빈 배열로 초기화합니다.
@@ -64,6 +66,8 @@ export class InterviewService {
         turn_count: 0,
       }
     };
+
+    console.log("Generated initialState:", JSON.stringify(initialState, null, 2));
 
     const response = await newInterview.invoke(initialState, {
       configurable: { thread_id: sessionId },
@@ -136,15 +140,22 @@ export class InterviewService {
       throw new Error("Session not found");
     }
 
+    console.log(`[${sessionId}] Received message: "${message}"`);
+
+    // LangGraph 문서 근거: "Manually retrieve and update the original state"
+    // invoke({})는 상태를 초기화하므로 사용하지 않습니다.
+    // 대신 새 메시지만 전달하여 LangGraph의 reducer 함수가 올바르게 작동하도록 합니다.
     const response = await interview.invoke(
       {
-        messages: [new HumanMessage(message)],
+        messages: [new HumanMessage(message)], // 새 메시지만 전달
       },
       {
         configurable: { thread_id: sessionId },
       }
     );
 
+    console.log(`[${sessionId}] Final user_context in response:`, JSON.stringify(response.user_context, null, 2));
+    console.log(`[${sessionId}] State after invoke:`, JSON.stringify(response, null, 2));
     return this.formatResponse(sessionId, response, "message") as SendMessageResponse;
   }
 

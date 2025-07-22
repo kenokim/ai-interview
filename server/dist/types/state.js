@@ -5,38 +5,49 @@ export const interviewStateGraph = {
             value: (x, y) => x.concat(y),
             default: () => [],
         },
-        userContext: {
+        user_context: {
+            value: (x, y) => ({ ...x, ...y }),
+            default: () => ({ user_id: "" }),
+        },
+        persona: {
+            value: (x, y) => y,
+            default: () => ({
+                name: "InterviewerAI",
+                role: "AI 기술 면접관",
+                backstory: "사용자의 성공적인 기술 면접 경험을 돕기 위해 설계된 AI 에이전트입니다.",
+                style_guidelines: ["전문적이고 친절한 어조를 유지합니다."],
+            })
+        },
+        guardrails: {
             value: (x, y) => ({ ...x, ...y }),
             default: () => ({
-                jobRole: "ai_agent",
-                experience: "junior",
-                interviewType: "technical",
-            }),
+                is_safe: true,
+                fallback_count: 0
+            })
         },
-        interview_stage: {
-            value: (x, y) => y,
-            default: () => "Greeting",
-        },
-        questions_asked: {
-            value: (x, y) => x.concat(y),
-            default: () => [],
-        },
-        current_question: {
+        proactive: {
             value: (x, y) => y,
             default: () => undefined,
         },
-        last_evaluation: {
-            value: (x, y) => y,
-            default: () => undefined,
+        flow_control: {
+            value: (x, y) => ({ ...x, ...y }),
+            default: () => ({})
         },
-        next: {
-            value: (x, y) => y,
-            default: () => "supervisor",
+        task: {
+            value: (x, y) => ({ ...x, ...y }),
+            default: () => ({
+                interview_stage: "Greeting",
+                question_pool: [],
+                questions_asked: [],
+                current_difficulty: 50,
+            })
         },
-        trigger_context: {
-            value: (x, y) => y,
-            default: () => undefined,
-        }
+        evaluation: {
+            value: (x, y) => ({ ...x, ...y }),
+            default: () => ({
+                turn_count: 0,
+            })
+        },
     },
 };
 export const InterviewStateAnnotation = new StateGraph(interviewStateGraph);

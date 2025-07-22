@@ -1,9 +1,9 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, MicOff, MessageSquare, Send, Settings, LogOut, ImageOff, Loader2 } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, Settings, LogOut, ImageOff, Loader2, Timer } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import InterviewerImage from "@/assets/interviewer.png";
 import { startInterview, sendMessage, endInterview } from "@/services/api";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface InterviewState {
   resume: string;
@@ -68,10 +69,25 @@ const InterviewPage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
     localStorage.setItem("isChatOpen", JSON.stringify(isChatOpen));
   }, [isChatOpen]);
+
+  useEffect(() => {
+    if (sessionId) {
+      const timer = setInterval(() => {
+        // This is a placeholder logic for start time.
+        // In a real app, you would get the start time from the session.
+        const start = new Date(parseInt(sessionId.split('_')[1])).getTime();
+        const now = Date.now();
+        setElapsedTime(Math.floor((now - start) / 1000));
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     const initializeInterview = async () => {
@@ -101,8 +117,7 @@ const InterviewPage = () => {
             jobDescription: state.jobDescription,
             userName: "사용자",
           };
-
-          console.log("Interview Start Request:", payload);
+          console.log("Interview Start Request Payload:", payload);
           const response = await startInterview(payload);
           console.log("Interview Start Response:", response);
 
@@ -224,6 +239,21 @@ const InterviewPage = () => {
     return state?.interviewType === 'technical' ? '기술면접' : '컬쳐핏면접';
   };
   
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const parts = [];
+    if (hours > 0) {
+      parts.push(String(hours).padStart(2, '0'));
+    }
+    parts.push(String(minutes).padStart(2, '0'));
+    parts.push(String(seconds).padStart(2, '0'));
+
+    return parts.join(':');
+  };
+
   if (!state) {
     return null; 
   }
@@ -279,6 +309,16 @@ const InterviewPage = () => {
           </Sheet>
           
           <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" className="text-white hover:bg-white/10">
+                  <Timer className="h-5 w-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2 bg-gray-800 text-white border-gray-700">
+                <p className="text-sm">경과 시간: {formatTime(elapsedTime)}</p>
+              </PopoverContent>
+            </Popover>
             <Button variant="ghost" onClick={() => setIsChatOpen(!isChatOpen)} className="text-white hover:bg-white/10">
               <MessageSquare className="h-5 w-5" />
             </Button>
@@ -305,7 +345,7 @@ const InterviewPage = () => {
         <div className="relative z-10 flex-1 flex items-center justify-center px-6">
           <div className="text-center space-y-8">
             <div className="relative" onClick={() => setShowAvatar(!showAvatar)}>
-              <div className="w-64 h-64 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105">
+              <div className={`w-64 h-64 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105 ${isSending ? "animate-pulse-scale" : ""}`}>
                 <div className="w-[15.25rem] h-[15.25rem] bg-gradient-to-br from-blue-300 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
                   {showAvatar ? (
                     <img src={InterviewerImage} alt="AI Interviewer" className="w-full h-full object-cover select-none pointer-events-none" />

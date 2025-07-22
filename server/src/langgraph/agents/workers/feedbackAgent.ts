@@ -40,15 +40,13 @@ export const feedbackAgent = async (state: InterviewState): Promise<Partial<Inte
   
   console.log("피드백이 생성되었습니다.");
 
-  // 질문 수를 확인하여 다음 단계 결정
-  const totalQuestions = 3; // 기본 질문 수
-  const hasMoreQuestions = state.task.questions_asked.length < totalQuestions;
-  
   return {
+    ...state,
+    user_context: state.user_context, // 상태 유실 방지
     messages: [...state.messages, new AIMessage(feedbackMessage)],
     task: {
       ...state.task,
-      interview_stage: hasMoreQuestions ? "Feedback" : "Farewell" // 더 질문이 있으면 Feedback, 없으면 Farewell로 설정
+      interview_stage: "Feedback" // Supervisor가 이 상태를 보고 다음 행동을 결정합니다.
     },
     evaluation: {
       ...state.evaluation,

@@ -3,7 +3,6 @@ import { interviewStateGraph, InterviewStateType } from "../types/state.js";
 import { supervisorNode } from "./agents/interviewer.js";
 import { greetingAgent } from "./agents/workers/greetingAgent.js";
 import { technicalQuestionAgent } from "./agents/workers/technicalQuestionAgent.js";
-import { followupQuestionAgent } from "./agents/workers/followupQuestionAgent.js";
 import { evaluateAnswerAgent } from "./agents/workers/evaluateAnswer.js";
 import { feedbackAgent } from "./agents/workers/feedbackAgent.js";
 import { farewellAgent } from "./agents/workers/farewellAgent.js";

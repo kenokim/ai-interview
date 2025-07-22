@@ -9,41 +9,31 @@ const supervisorPrompt = `당신은 AI 면접관 팀을 관리하는 슈퍼바�
 
 사용 가능한 에이전트:
 - greeting_agent: 면접 시작 인사 및 안내
-- questioning_agent: 기술 질문 생성 (DDA 로직 포함)
+- questioning_agent: 기술 질문 생성
 - evaluation_agent: 사용자 답변 평가
 - feedback_agent: 평가 결과 기반 피드백 제공
 - farewell_agent: 면접 종료 인사
-- FINISH: 워크플로우를 종료하고 사용자에게 응답을 반환
+- FINISH: 사용자 입력을 기다려야 할 때 워크플로우를 일시 중지
 
-현재 상황:
-- 면접 단계: {interview_stage}
-- 마지막 메시지 타입: {last_message_type}
-- 마지막 메시지 내용: {last_message}
-- 프로액티브 컨텍스트: {proactive_context}
+**핵심 라우팅 규칙 (주어진 상태를 바탕으로 가장 적합한 다음 에이전트를 하나만 결정하세요):**
 
-**핵심 라우팅 규칙 (반드시 순서대로 확인):**
+1.  **인사 후 사용자 준비 확인:**
+    -   현재 단계: \`Greeting\` / 마지막 메시지: 사용자의 응답 → 사용자가 준비되었으므로 **questioning_agent** 호출
 
-1. **FINISH 조건 - 가장 중요!**
-   - 마지막 메시지가 AI 메시지(질문, 인사, 피드백 등)인 경우 → 반드시 'FINISH'
-   - 면접 단계가 'Finished'인 경우 → 반드시 'FINISH'
+2.  **사용자 답변 평가:**
+    -   현재 단계: \`Questioning\` / 마지막 메시지: 사용자의 답변 → 답변을 평가해야 하므로 **evaluation_agent** 호출
 
-2. **Greeting 단계**
-   - 프로액티브 컨텍스트가 있고 면접 단계가 'Greeting'인 경우 → 'greeting_agent'
-   - 면접 단계가 'Greeting'이고 마지막 메시지가 AI의 인사인 경우 → 'questioning_agent'
+3.  **평가 후 피드백 제공:**
+    -   현재 단계: \`Evaluating\` (평가 완료) → 평가 결과를 바탕으로 피드백을 제공해야 하므로 **feedback_agent** 호출
 
-3. **사용자 답변 처리**
-   - 마지막 메시지가 사용자 메시지이고 면접 단계가 'Questioning'인 경우 → 'evaluation_agent'
+4.  **피드백 후 다음 질문 또는 종료:**
+    -   현재 단계: \`Feedback\` / 마지막 메시지: AI의 피드백 → 남은 질문 수({remaining_questions})를 확인:
+        -   남은 질문이 1개 이상이면 → 다음 질문을 위해 **questioning_agent** 호출
+        -   남은 질문이 0개이면 → 면접을 마무리하기 위해 **farewell_agent** 호출
 
-4. **평가 후 피드백**
-   - 면접 단계가 'Evaluating'이고 평가가 완료된 경우 → 'feedback_agent'
-
-5. **피드백 후 다음 단계**
-   - 면접 단계가 'Feedback'이고 피드백이 완료된 경우 → 'questioning_agent' 또는 'farewell_agent'
-
-**응답 형식:** 반드시 다음 중 하나만 반환하세요:
+응답은 반드시 다음 중 하나의 단어로만 해주세요:
 greeting_agent, questioning_agent, evaluation_agent, feedback_agent, farewell_agent, FINISH
-
-결정:`;
+`;
 
 export const interviewerNode = async (state: InterviewState) => {
     console.log("면접관 노드가 실행 중입니다.");
@@ -86,11 +76,21 @@ export const supervisorNode = async (state: InterviewState) => {
   }
 
   const lastMessage = messages[messages.length - 1];
-  const lastMessageType = lastMessage instanceof AIMessage ? "AI" : "Human";
   
-  // 2. AI가 방금 메시지를 보낸 경우 (사용자 응답 대기)
-  if (lastMessage instanceof AIMessage) {
-    console.log(`상태: ${task.interview_stage} / AI 메시지 -> FINISH (사용자 입력 대기)`);
+  // 2. AI가 "질문"을 한 직후에만 FINISH
+  if (lastMessage instanceof AIMessage && task.interview_stage === "Questioning") {
+    console.log(`상태: Questioning / AI 메시지 -> FINISH (사용자 입력 대기)`);
+    return {
+      ...state,
+      flow_control: {
+        next_worker: "FINISH",
+      }
+    };
+  }
+  
+  // 2-1. AI가 "인사"를 한 직후에도 FINISH (사용자가 준비 상태를 확인할 수 있도록)
+  if (lastMessage instanceof AIMessage && task.interview_stage === "Greeting") {
+    console.log(`상태: Greeting / AI 메시지 -> FINISH (사용자 준비 상태 확인 대기)`);
     return {
       ...state,
       flow_control: {
@@ -110,7 +110,8 @@ export const supervisorNode = async (state: InterviewState) => {
     };
   }
 
-  // 4. LLM을 통해 다음 에이전트 결정 (사용자가 답변한 경우)
+  // 4. LLM을 통해 다음 에이전트 결정
+  const lastMessageType = lastMessage instanceof AIMessage ? "AI" : "Human";
   console.log(`상태: ${task.interview_stage} / ${lastMessageType} 메시지 -> LLM으로 라우팅 결정`);
   
   const model = new ChatGoogleGenerativeAI({
@@ -118,11 +119,11 @@ export const supervisorNode = async (state: InterviewState) => {
     temperature: 0,
   }).pipe(new StringOutputParser());
 
+  const remainingQuestions = Math.max(0, (state.task.question_pool?.length || 0) - (state.task.questions_asked?.length || 0));
+
   const formattedPrompt = supervisorPrompt
     .replace("{interview_stage}", task.interview_stage)
-    .replace("{last_message_type}", lastMessageType)
-    .replace("{last_message}", lastMessage.content.toString())
-    .replace("{proactive_context}", JSON.stringify(proactive, null, 2) || "없음");
+    .replace("{remaining_questions}", remainingQuestions.toString())
 
   console.log("LLM Supervisor 호출...");
   const response = await model.invoke(formattedPrompt);
@@ -137,4 +138,4 @@ export const supervisorNode = async (state: InterviewState) => {
       next_worker: nextNode,
     }
   };
-}; 
+};

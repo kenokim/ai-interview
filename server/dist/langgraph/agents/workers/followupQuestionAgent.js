@@ -12,24 +12,33 @@ const followupQuestionPrompt = `당신은 기술 면접관입니다. 후보자�
 
 후속 질문:`;
 export const followupQuestionAgent = async (state) => {
-    console.log("🔍 Follow-up Question Agent generating follow-up...");
-    const { messages, current_question } = state;
+    console.log("후속 질문 에이전트가 후속 질문을 생성하고 있습니다.");
+    const { messages, task } = state;
     const lastMessage = messages[messages.length - 1]?.content.toString() || "";
     const model = new ChatGoogleGenerativeAI({
         model: "gemini-2.0-flash",
         temperature: 0.7,
     });
     const formattedPrompt = followupQuestionPrompt
-        .replace("{current_question}", current_question || "없음")
+        .replace("{current_question}", task.current_question?.text || task.current_question || "없음")
         .replace("{last_message}", lastMessage);
     const response = await model.invoke(formattedPrompt);
     const question = response.content.toString();
-    console.log(`🔍 Follow-up question generated: ${question}`);
+    console.log(`후속 질문이 생성되었습니다: ${question}`);
+    const questionObj = {
+        text: question,
+        type: "followup",
+        difficulty: task.current_difficulty
+    };
     return {
-        messages: [new AIMessage(question)],
-        current_question: question,
-        interview_stage: "Follow-up",
-        next: "supervisor",
+        ...state,
+        messages: [...state.messages, new AIMessage(question)],
+        task: {
+            ...state.task,
+            current_question: questionObj,
+            questions_asked: [...state.task.questions_asked, questionObj],
+            interview_stage: "Questioning"
+        }
     };
 };
 //# sourceMappingURL=followupQuestionAgent.js.map

@@ -123,7 +123,12 @@ export const interviewStateGraph: StateGraphArgs<InterviewState> = {
       default: () => [],
     },
     user_context: {
-        value: (x, y) => ({ ...x, ...y }),
+        value: (x, y) => ({
+            ...x,
+            ...y,
+            // profile 필드가 있으면 깊은 병합 수행
+            profile: y?.profile ? { ...x?.profile, ...y.profile } : x?.profile
+        }),
         default: () => ({ user_id: "" }),
     },
     persona: {

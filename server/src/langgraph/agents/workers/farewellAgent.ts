@@ -18,11 +18,10 @@ export const farewellAgent = async (state: InterviewState): Promise<Partial<Inte
   console.log("작별 인사 메시지가 생성되었습니다.");
 
   return {
+    ...state,
+    user_context: state.user_context, // 상태 유실 방지
     messages: [...state.messages, new AIMessage(farewellMessage)],
-    task: {
-      ...state.task,
-      interview_stage: "Finished"
-    },
+    task: { ...state.task, interview_stage: "Finished" },
     evaluation: {
       ...state.evaluation,
       turn_count: state.evaluation.turn_count + 1,
