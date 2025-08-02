@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
 
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -19,6 +21,26 @@ if (!process.env.GOOGLE_API_KEY) {
 }
 
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws) => {
+  console.log('🎙️ 클라이언트가 WebSocket으로 연결되었습니다.');
+
+  ws.on('message', (message) => {
+    console.log('받은 메시지: %s', message);
+    ws.send('안녕하세요! 메시지를 잘 받았습니다.');
+  });
+
+  ws.on('close', () => {
+    console.log('🔌 클라이언트와 WebSocket 연결이 끊겼습니다.');
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket 오류 발생:', error);
+  });
+});
+
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -36,4 +58,4 @@ app.use('/', routes);
 app.use('*', notFoundHandler);
 app.use(errorHandler);
 
-export default app; 
+export default server; 

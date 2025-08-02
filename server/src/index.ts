@@ -1,13 +1,14 @@
 import dotenv from 'dotenv';
-import app from './app.js';
+import server from './app.js';
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
 // Start the server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`AI Interview Server is running on port ${PORT}`);
+  console.log('WebSocket server is also running on the same port.');
   console.log(`API endpoints:`);
   console.log(`   POST /api/interview/start - Start new interview`);
   console.log(`   POST /api/interview/message - Send message`);
@@ -16,4 +17,4 @@ app.listen(PORT, () => {
   console.log(`   GET  /api/interview/sessions - List all sessions`);
 });
 
-export default app; 
+export default server; 
