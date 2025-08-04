@@ -14,7 +14,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [resume, setResume] = useState('');
   const [jobDescription, setJobDescription] = useState('');
-  const [jobRole, setJobRole] = useState('typescript');
+  const [jobRole, setJobRole] = useState('backend');
   const [interviewType, setInterviewType] = useState('technical');
   const [experience, setExperience] = useState([2]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -32,17 +32,17 @@ const Index = () => {
   };
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <Card className="p-6 sm:p-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <Card className="p-6 sm:p-8 shadow-md border border-gray-100 bg-white/70 backdrop-blur-md">
             {/* Header */}
             <div className="text-center mb-6">
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-                AI 면접 서비스
+                AI 인터뷰
               </h1>
-              <p className="text-lg text-gray-600">
-                AI와 함께 실전같은 맞춤형 면접을 경험해보세요.
+              <p className="text-m text-gray-600">
+                면접 시작 전에 스피커와 마이크가 올바르게 연결되어 있는지 확인해주세요.
               </p>
             </div>
             
@@ -55,17 +55,7 @@ const Index = () => {
                     <SelectValue placeholder="직무를 선택해주세요" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="typescript">TypeScript 개발자</SelectItem>
-                    <SelectItem value="ai_agent">AI Agent 개발자</SelectItem>
-                    <SelectItem value="frontend">프론트엔드 개발자</SelectItem>
                     <SelectItem value="backend">백엔드 개발자</SelectItem>
-                    <SelectItem value="fullstack">풀스택 개발자</SelectItem>
-                    <SelectItem value="mobile">모바일 개발자</SelectItem>
-                    <SelectItem value="devops">DevOps 엔지니어</SelectItem>
-                    <SelectItem value="data">데이터 사이언티스트</SelectItem>
-                    <SelectItem value="pm">프로덕트 매니저</SelectItem>
-                    <SelectItem value="designer">UI/UX 디자이너</SelectItem>
-                    <SelectItem value="qa">QA 엔지니어</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -97,7 +87,7 @@ const Index = () => {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-lg font-semibold text-gray-900">경력 연차</Label>
-                  <div className="text-base font-semibold text-blue-600">
+                  <div className="text-base font-semibold text-indigo-500">
                     {experience[0]}년차
                   </div>
                 </div>
@@ -153,7 +143,7 @@ const Index = () => {
                 onClick={handleStartInterview}
                 disabled={!jobRole}
                 size="lg"
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 text-lg shadow-lg"
+                className="w-full bg-gradient-to-r from-indigo-400 to-purple-400 hover:from-indigo-500 hover:to-purple-500 text-white font-medium py-3 text-lg shadow-md"
               >
                 면접 시작하기
               </Button>

@@ -1,6 +1,5 @@
-import { AIMessage, HumanMessage } from "@langchain/core/messages";
-import { Runnable, RunnableConfig } from "@langchain/core/runnables";
-import { CompiledGraph } from "@langchain/langgraph";
+import { HumanMessage } from "@langchain/core/messages";
+import { Runnable } from "@langchain/core/runnables";
 import {
   InterviewStateType
 } from "../types/state.js";
@@ -145,7 +144,8 @@ export class InterviewService {
       throw new Error("Session not found");
     }
 
-    console.log(`[${sessionId}] Received message: "${message}"`);
+    console.log(`🔵 [${sessionId}] Received message: "${message}"`);
+    console.log(`🔄 [${sessionId}] Calling LangGraph.invoke()...`);
 
     // 체크포인터 상태 확인
     try {
@@ -167,8 +167,9 @@ export class InterviewService {
       }
     );
 
-    console.log(`[${sessionId}] Final user_context in response:`, JSON.stringify(response.user_context, null, 2));
-    console.log(`[${sessionId}] State after invoke:`, JSON.stringify(response, null, 2));
+    console.log(`✅ [${sessionId}] LangGraph.invoke() completed`);
+    console.log(`📤 [${sessionId}] AI Response: "${response.messages[response.messages.length - 1]?.content?.toString().slice(0, 100)}..."`);
+    console.log(`🏷️ [${sessionId}] Stage: ${response.task?.interview_stage}, Next: ${response.flow_control?.next_worker}`);
     return this.formatResponse(sessionId, response, "message") as SendMessageResponse;
   }
 
@@ -181,6 +182,37 @@ export class InterviewService {
       configurable: { thread_id: sessionId },
     });
     return this.formatResponse(sessionId, state, "status") as SessionStatusResponse;
+  }
+
+  public streamUpdates(sessionId: string) {
+    console.log(`🔍 [Service] streamUpdates 호출: ${sessionId}`);
+    const interview = this.sessions.get(sessionId);
+    if (!interview) {
+      console.error(`❌ [Service] 세션을 찾을 수 없음: ${sessionId}`);
+      console.log(`📋 [Service] 현재 활성 세션들:`, Array.from(this.sessions.keys()));
+      throw new Error("Session not found");
+    }
+    console.log(`✅ [Service] 세션 발견, 스트림 시작: ${sessionId}`);
+    
+    // LangGraph 스트리밍 반환값 확인
+    // 입력 델타를 주지 않고 기존 체크포인트 상태만 스트리밍하도록 undefined 전달
+    const streamResult = (interview as any).stream(undefined, {
+      configurable: { thread_id: sessionId },
+      stream_mode: ["updates", "messages"],
+    });
+    
+    console.log(`🔍 [Service] 스트림 결과 타입:`, typeof streamResult);
+    console.log(`🔍 [Service] 스트림 결과 Symbol.asyncIterator:`, !!streamResult[Symbol.asyncIterator]);
+    
+    // 비동기 이터레이터가 아닌 경우 빈 스트림 반환
+    if (!streamResult || typeof streamResult[Symbol.asyncIterator] !== 'function') {
+      console.log(`⚠️ [Service] 유효하지 않은 스트림, 빈 스트림 반환`);
+      return (async function* () {
+        // 빈 스트림
+      })();
+    }
+    
+    return streamResult;
   }
 
   public async endInterview(body: EndInterviewRequest) {
