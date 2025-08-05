@@ -15,16 +15,20 @@ const greetingPrompt = `당신은 'InterviewerAI'라는 이름의 친절하고 �
 
 환영 메시지:`;
 export const greetingAgent = async (state) => {
-    console.log("인사 에이전트가 LLM을 호출하여 환영 메시지를 생성하고 있습니다.");
+    console.log("👋 [LangGraph Worker] greetingAgent 실행 중...");
     const { user_context } = state;
     const userName = user_context.profile?.userName || "지원자";
     const model = new ChatGoogleGenerativeAI({
         model: "gemini-2.0-flash",
         temperature: 0.7,
+        streaming: true, // 스트리밍 활성화
     });
     const formattedPrompt = greetingPrompt.replace("{userName}", userName);
-    const response = await model.invoke(formattedPrompt);
-    const greetingMessage = response.content.toString();
+    let greetingMessage = "";
+    const stream = await model.stream(formattedPrompt);
+    for await (const chunk of stream) {
+        greetingMessage += chunk.content;
+    }
     console.log("환영 메시지가 생성되었습니다.");
     return {
         ...state, // 기존 상태를 그대로 유지

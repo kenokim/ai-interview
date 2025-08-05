@@ -7,6 +7,7 @@ export declare class InterviewService {
     triggerInterview(body: TriggerInterviewRequest): Promise<TriggerInterviewResponse>;
     sendMessage(body: SendMessageRequest): Promise<SendMessageResponse>;
     getSessionStatus(sessionId: string): Promise<SessionStatusResponse>;
+    streamUpdates(sessionId: string): any;
     endInterview(body: EndInterviewRequest): Promise<EndInterviewResponse>;
     private formatResponse;
     listSessions(): SessionsListResponse;

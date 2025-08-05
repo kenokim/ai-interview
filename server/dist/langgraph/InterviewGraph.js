@@ -1,54 +1,37 @@
-import { StateGraph, END, START } from "@langchain/langgraph";
-import { interviewStateGraph } from "../types/state.js";
-import { supervisorNode } from "./agents/interviewer.js";
+import { StateGraph, START, END, MemorySaver } from "@langchain/langgraph";
+import { InterviewStateAnnotation } from "../types/state.js";
 import { greetingAgent } from "./agents/workers/greetingAgent.js";
-import { technicalQuestionAgent } from "./agents/workers/technicalQuestionAgent.js";
-import { evaluateAnswerAgent } from "./agents/workers/evaluateAnswer.js";
-import { feedbackAgent } from "./agents/workers/feedbackAgent.js";
-import { farewellAgent } from "./agents/workers/farewellAgent.js";
-const SUPERVISOR = "supervisor";
+import { conversationAgent } from "./agents/workers/conversationAgent.js";
+import { supervisorNode } from "./agents/interviewer.js";
 const GREETING_AGENT = "greeting_agent";
-const QUESTIONING_AGENT = "questioning_agent";
-const EVALUATION_AGENT = "evaluation_agent";
-const FEEDBACK_AGENT = "feedback_agent";
-const FAREWELL_AGENT = "farewell_agent";
+const CONVERSATION_AGENT = "conversation_agent";
+const SUPERVISOR = "supervisor";
 export class InterviewGraph {
     graph;
     constructor() {
-        const graphBuilder = new StateGraph(interviewStateGraph)
-            .addNode(SUPERVISOR, supervisorNode)
+        const builder = new StateGraph(InterviewStateAnnotation)
             .addNode(GREETING_AGENT, greetingAgent)
-            .addNode(QUESTIONING_AGENT, technicalQuestionAgent)
-            .addNode(EVALUATION_AGENT, evaluateAnswerAgent)
-            .addNode(FEEDBACK_AGENT, feedbackAgent)
-            .addNode(FAREWELL_AGENT, farewellAgent);
-        graphBuilder.addEdge(START, SUPERVISOR);
-        graphBuilder.addConditionalEdges(SUPERVISOR, (state) => {
-            console.log("분기 조건 확인 중 - next_worker:", state.flow_control.next_worker);
-            const nextNode = state.flow_control.next_worker;
-            if (nextNode === "FINISH" || !nextNode) {
+            .addNode(CONVERSATION_AGENT, conversationAgent)
+            .addNode(SUPERVISOR, supervisorNode);
+        // 1. 진입점 설정: 시작하면 무조건 슈퍼바이저에게 먼저 간다.
+        builder.addEdge(START, SUPERVISOR);
+        // 2. 슈퍼바이저의 결정에 따라 분기
+        builder.addConditionalEdges(SUPERVISOR, (state) => {
+            const nextWorker = state.flow_control?.next_worker;
+            if (nextWorker === "FINISH") {
                 return END;
             }
-            // 노드 이름 매핑
-            const nodeMapping = {
-                "greeting_agent": GREETING_AGENT,
-                "questioning_agent": QUESTIONING_AGENT,
-                "evaluation_agent": EVALUATION_AGENT,
-                "feedback_agent": FEEDBACK_AGENT,
-                "farewell_agent": FAREWELL_AGENT,
-                "technical_question_agent": QUESTIONING_AGENT, // 호환성을 위해
-            };
-            const mappedNode = nodeMapping[nextNode] || nextNode;
-            console.log("다음 노드로 이동:", nextNode, "→", mappedNode);
-            return mappedNode;
+            return nextWorker || CONVERSATION_AGENT;
+        }, {
+            [GREETING_AGENT]: GREETING_AGENT,
+            [CONVERSATION_AGENT]: CONVERSATION_AGENT,
+            [END]: END
         });
-        // 모든 Worker 에이전트들은 작업 완료 후 Supervisor로 제어권을 반환
-        graphBuilder.addEdge(GREETING_AGENT, SUPERVISOR);
-        graphBuilder.addEdge(QUESTIONING_AGENT, SUPERVISOR);
-        graphBuilder.addEdge(EVALUATION_AGENT, SUPERVISOR);
-        graphBuilder.addEdge(FEEDBACK_AGENT, SUPERVISOR);
-        graphBuilder.addEdge(FAREWELL_AGENT, SUPERVISOR);
-        this.graph = graphBuilder.compile();
+        // 3. 워커 실행 후에는 다시 슈퍼바이저에게 돌아가 다음 행동을 결정한다.
+        builder.addEdge(GREETING_AGENT, SUPERVISOR);
+        builder.addEdge(CONVERSATION_AGENT, SUPERVISOR);
+        const checkpointer = new MemorySaver();
+        this.graph = builder.compile({ checkpointer });
     }
     compile() {
         return this.graph;

@@ -74,7 +74,9 @@ const InterviewPage = () => {
   const [wsReady, setWsReady] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const thinkingIdRef = useRef<number | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   // WebSocket 연결
   useEffect(() => {
@@ -100,34 +102,76 @@ const InterviewPage = () => {
       if (type === 'chunk') {
         const [mode, payload] = chunk;
         console.log('📦 [UI] 청크 수신:', { mode, payload });
+        // 1) 서버 테스트용 ping 청크를 채팅창에 표시
+        if (mode === 'ping') {
+          setChatMessages(prev => [
+            ...prev,
+            {
+              id: Date.now(),
+              type: 'ai',
+              message: `🟢 서버 ping: ${new Date(payload.serverTime).toLocaleTimeString()}`,
+            },
+          ]);
+        }
+
+        // 2) LLM 토큰 스트림 처리
         if (mode === 'messages') {
           const token = payload[0]?.content || '';
           console.log('💬 [UI] 토큰 수신:', token);
+
           if (thinkingIdRef.current) {
+            // 기존 placeholder 업데이트
             setChatMessages(prev => prev.map(m => m.id === thinkingIdRef.current ? { ...m, message: m.message + token } : m));
+          } else {
+            // placeholder 가 없으면 새로 만들고 토큰을 넣는다 (서버 자동 메시지 스트림 등)
+            const newId = Date.now();
+            thinkingIdRef.current = newId;
+            setChatMessages(prev => [
+              ...prev,
+              { id: newId, type: 'ai', message: token, isThinking: true },
+            ]);
           }
         }
       }
       if (type === 'response') {
         console.log('✅ [UI] 최종 응답 수신:', data);
-        console.log('🆔 [UI] thinkingIdRef.current:', thinkingIdRef.current);
-        console.log('💬 [UI] 응답 메시지:', data.message);
-        
-        const targetId = thinkingIdRef.current; // ID를 먼저 저장
-        console.log('💾 [UI] 저장된 targetId:', targetId);
-        
-        setChatMessages(prev => {
-          console.log('📝 [UI] 업데이트 전 메시지들:', prev);
-          const updated = prev.map(m => {
-            if (m.id === targetId) {
-              console.log('🎯 [UI] 타겟 메시지 찾음:', m);
+
+        const updatePlaceholder = (placeholderId: number | null) => {
+          if (!placeholderId) return false;
+          let updated = false;
+          setChatMessages(prev => prev.map(m => {
+            if (m.id === placeholderId) {
+              updated = true;
               return { ...m, message: data.message, isThinking: false };
             }
             return m;
-          });
-          console.log('📝 [UI] 업데이트 후 메시지들:', updated);
+          }));
           return updated;
-        });
+        };
+
+        // 1) 우선 thinkingIdRef 로 업데이트 시도
+        let handled = updatePlaceholder(thinkingIdRef.current);
+
+        // 2) 실패하면 가장 오래된 isThinking 메시지 찾아 업데이트
+        if (!handled) {
+          const firstThinking = chatMessages.find(m => m.isThinking);
+          handled = updatePlaceholder(firstThinking ? firstThinking.id : null);
+        }
+
+        // 3) 그래도 못했으면, 직전에 추가된 AI 메시지와 동일한지 확인 후 중복 방지
+        if (!handled) {
+          setChatMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.type === 'ai' && last.message.trim() === data.message.trim()) {
+              return prev; // 이미 같은 내용이 있다면 추가하지 않음
+            }
+            return [
+              ...prev,
+              { id: Date.now(), type: 'ai', message: data.message },
+            ];
+          });
+        }
+
         setIsSending(false);
         thinkingIdRef.current = null;
       }
@@ -148,6 +192,13 @@ const InterviewPage = () => {
   useEffect(() => {
     localStorage.setItem("isChatOpen", JSON.stringify(isChatOpen));
   }, [isChatOpen]);
+
+  // 새 메시지 도착 시 스크롤을 맨 아래로 이동
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages, isChatOpen]);
 
   useEffect(() => {
     if (sessionId) {
@@ -256,6 +307,7 @@ const InterviewPage = () => {
       console.log('📝 [UI] 메시지 객체 생성:', { userMessage, thinkingMessage });
       setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
       setCurrentMessage('');
+      inputRef.current?.focus();
       setIsSending(true);
       thinkingIdRef.current = thinkingMessage.id;
 
@@ -472,7 +524,7 @@ const InterviewPage = () => {
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-white/10">
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-white/10">
             {chatMessages.map((chat) => (
               <div key={chat.id} className={`flex items-start gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
                 {chat.type === 'ai' && (
@@ -541,12 +593,12 @@ const InterviewPage = () => {
           <div className="p-4 border-t border-white/10 flex-shrink-0 bg-white/10">
             <div className="relative">
               <Input
+                ref={inputRef}
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="답변을 입력하세요..."
                 className="bg-gray-800/80 border-gray-700 rounded-full h-11 pr-12"
-                disabled={isSending}
               />
               <Button
                 onClick={handleSendMessage}

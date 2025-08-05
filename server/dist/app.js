@@ -4,6 +4,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import { InterviewSocket } from './ws/InterviewSocket.js';
 import routes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import swaggerSpec from './swagger.js';
@@ -15,6 +18,10 @@ if (!process.env.GOOGLE_API_KEY) {
     process.exit(1);
 }
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+const interviewSocket = new InterviewSocket();
+interviewSocket.register(wss);
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Security and logging middleware
@@ -27,5 +34,5 @@ app.use('/', routes);
 // Error handling
 app.use('*', notFoundHandler);
 app.use(errorHandler);
-export default app;
+export default server;
 //# sourceMappingURL=app.js.map

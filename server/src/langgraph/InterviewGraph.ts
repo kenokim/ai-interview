@@ -33,6 +33,7 @@ export class InterviewGraph {
       {
         [GREETING_AGENT]: GREETING_AGENT,
         [CONVERSATION_AGENT]: CONVERSATION_AGENT,
+        [END]: END
       }
     );
 

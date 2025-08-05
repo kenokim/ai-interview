@@ -6,6 +6,36 @@
 
 ## 1. 통합 시나리오
 
+```mermaid
+sequenceDiagram
+    participant Front as "React UI"
+    participant WS as "Express WS Gateway"
+    participant LG as "LangGraph Runtime"
+    participant GL as "Gemini Live API"
+
+    %% 1. 사용자 음성 입력 → 전사
+    note over Front,WS: 100 ms 간격 PCM 스트림
+    Front->>WS: Binary PCM chunk
+    WS->>GL: send_realtime_input(audio)
+    GL-->>WS: server_content.text (transcription)
+
+    %% 2. 텍스트 전사 → LangGraph 실행
+    note over WS,LG: 전사 텍스트 전달
+    WS->>LG: emit(transcription)
+    LG-->>WS: graph.stream [messages / updates] (AI 텍스트)
+
+    %% 3. AI 텍스트 → TTS 변환 요청
+    note over WS,GL: AI 응답을 음성으로 변환
+    WS->>GL: send_realtime_input(text)
+    GL-->>WS: server_content.audio (base64)
+
+    %% 4. 클라이언트로 실시간 브로드캐스트
+    note over WS,Front: 텍스트 & 오디오 동시 전달
+    WS-->>Front: JSON chunk (messages / updates)
+    WS-->>Front: server_content.audio (base64)
+```
+
+
 ```
 ┌───────────┐  WebSocket  ┌───────────────────────┐  Method call   ┌────────────────────┐
 │ React UI  │────────────▶│  Express WS Gateway   │───────────────▶│ LangGraph Runtime  │
@@ -20,6 +50,36 @@
 ---
 
 ## 2. LiveApiNode 구현 (TypeScript)
+
+---
+
+## 개발자가 반드시 확인해야 할 체크포인트
+
+- 인증 보안
+  - API 키를 절대 프런트에 노출하지 않는다. 서버-서버 프록시 또는 임시 토큰 사용.
+  - .env 관리, git ignore 필수.
+- 오디오 포맷
+  - 입력: 16-bit PCM 16 kHz 모노
+  - 출력: 24 kHz PCM. Web Audio 재생 시 샘플레이트 변환 필요.
+- 지연 시간 튜닝
+  - MediaRecorder 전송 주기: 50-100 ms 권장. 너무 짧으면 네트워크 오버헤드, 너무 길면 VAD 지연.
+  - `bufferedAmount` 체크 후 back-pressure 적용.
+- 모델 선택
+  - 프로덕션 도구 호출 중심: gemini-live-2.5-flash (half-cascade).
+  - 자연스러운 음성 대화 중시: gemini-2.5-flash-preview-native-audio-*
+- 세션 수명
+  - 최대 1 시간. 장기 대화는 주기적 갱신 or 재접속 로직 추가.
+- 중단(바지-인) 대응
+  - ActivityStart 이벤트 수신 시 현재 응답 취소, 새로운 사용자 입력으로 그래프 재라우팅.
+- 안전 필터
+  - finishReason SAFETY 발생 시 우아한 오류 처리 및 사용자 안내.
+- 체크포인터 저장소
+  - MemorySaver → RedisSaver 전환 시 싱글 톤 주의, 동일 thread_id 사용.
+- 툴콜 안정성
+  - 네이티브 오디오 모델은 도구 호출 정확도가 떨어질 수 있음. 필요 시 half-cascade로 전환.
+- WebSocket 오류 처리
+  - 1006, 1011 에러 코드 분기. 재시도 지수 백오프.
+
 
 ```ts
 // liveApiNode.ts

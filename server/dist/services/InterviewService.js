@@ -32,9 +32,12 @@ export class InterviewService {
                 backstory: "사용자의 성공적인 기술 면접 경험을 돕기 위해 설계된 AI 에이전트입니다.",
                 style_guidelines: ["전문적이고 친절한 어조를 유지합니다."],
             },
-            flow_control: {
-            // Supervisor가 모든 라우팅을 결정하도록 비워둡니다.
+            guardrails: {
+                is_safe: true,
+                fallback_count: 0
             },
+            proactive: undefined,
+            flow_control: {},
             task: {
                 interview_stage: "Greeting",
                 question_pool: [],
@@ -80,14 +83,16 @@ export class InterviewService {
                 backstory: "사용자의 성공적인 기술 면접 경험을 돕기 위해 설계된 AI 에이전트입니다.",
                 style_guidelines: ["전문적이고 친절한 어조를 유지합니다."],
             },
+            guardrails: {
+                is_safe: true,
+                fallback_count: 0
+            },
             proactive: {
                 trigger_event_type: event_type,
                 trigger_event_id: event_id,
                 metadata: metadata || {},
             },
-            flow_control: {
-            // Let supervisor decide
-            },
+            flow_control: {},
             task: {
                 interview_stage: "Greeting",
                 question_pool: [],
@@ -109,26 +114,27 @@ export class InterviewService {
         if (!interview) {
             throw new Error("Session not found");
         }
-        console.log(`[${sessionId}] Received message: "${message}"`);
-        // 1. 현재 상태를 먼저 가져옵니다.
-        const currentState = await interview.invoke({}, { configurable: { thread_id: sessionId } });
-        console.log(`[${sessionId}] Current state before update:`, JSON.stringify(currentState, null, 2));
-        // 2. 현재 상태에 새 메시지를 추가합니다.
-        const newMessages = [...currentState.messages, new HumanMessage(message)];
+        console.log(`🔵 [${sessionId}] Received message: "${message}"`);
+        console.log(`🔄 [${sessionId}] Calling LangGraph.invoke()...`);
+        // 체크포인터 상태 확인
+        try {
+            const currentState = await interview.getState({ configurable: { thread_id: sessionId } });
+            console.log(`[${sessionId}] 현재 체크포인트 상태:`, JSON.stringify(currentState?.values?.user_context, null, 2));
+        }
+        catch (error) {
+            console.log(`[${sessionId}] 체크포인트 상태 조회 실패:`, error);
+        }
+        // LangGraph 문서 근거: "Manually retrieve and update the original state"
+        // invoke({})는 상태를 초기화하므로 사용하지 않습니다.
+        // 대신 새 메시지만 전달하여 LangGraph의 reducer 함수가 올바르게 작동하도록 합니다.
         const response = await interview.invoke({
-            // 모든 상태 필드를 명시적으로 다시 전달하여 유실을 방지합니다.
-            user_context: currentState.user_context,
-            persona: currentState.persona,
-            guardrails: currentState.guardrails,
-            proactive: currentState.proactive,
-            flow_control: currentState.flow_control,
-            task: currentState.task,
-            evaluation: currentState.evaluation,
-            messages: newMessages, // messages 필드만 업데이트
+            messages: [new HumanMessage(message)], // 새 메시지만 전달
         }, {
             configurable: { thread_id: sessionId },
         });
-        console.log(`[${sessionId}] State after invoke:`, JSON.stringify(response, null, 2));
+        console.log(`✅ [${sessionId}] LangGraph.invoke() completed`);
+        console.log(`📤 [${sessionId}] AI Response: "${response.messages[response.messages.length - 1]?.content?.toString().slice(0, 100)}..."`);
+        console.log(`🏷️ [${sessionId}] Stage: ${response.task?.interview_stage}, Next: ${response.flow_control?.next_worker}`);
         return this.formatResponse(sessionId, response, "message");
     }
     async getSessionStatus(sessionId) {
@@ -140,6 +146,32 @@ export class InterviewService {
             configurable: { thread_id: sessionId },
         });
         return this.formatResponse(sessionId, state, "status");
+    }
+    streamUpdates(sessionId) {
+        console.log(`🔍 [Service] streamUpdates 호출: ${sessionId}`);
+        const interview = this.sessions.get(sessionId);
+        if (!interview) {
+            console.error(`❌ [Service] 세션을 찾을 수 없음: ${sessionId}`);
+            console.log(`📋 [Service] 현재 활성 세션들:`, Array.from(this.sessions.keys()));
+            throw new Error("Session not found");
+        }
+        console.log(`✅ [Service] 세션 발견, 스트림 시작: ${sessionId}`);
+        // LangGraph 스트리밍 반환값 확인
+        // 입력 델타를 주지 않고 기존 체크포인트 상태만 스트리밍하도록 undefined 전달
+        const streamResult = interview.stream(undefined, {
+            configurable: { thread_id: sessionId },
+            stream_mode: ["updates", "messages"],
+        });
+        console.log(`🔍 [Service] 스트림 결과 타입:`, typeof streamResult);
+        console.log(`🔍 [Service] 스트림 결과 Symbol.asyncIterator:`, !!streamResult[Symbol.asyncIterator]);
+        // 비동기 이터레이터가 아닌 경우 빈 스트림 반환
+        if (!streamResult || typeof streamResult[Symbol.asyncIterator] !== 'function') {
+            console.log(`⚠️ [Service] 유효하지 않은 스트림, 빈 스트림 반환`);
+            return (async function* () {
+                // 빈 스트림
+            })();
+        }
+        return streamResult;
     }
     async endInterview(body) {
         const { sessionId } = body;

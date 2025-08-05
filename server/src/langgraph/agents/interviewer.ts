@@ -116,6 +116,17 @@ export const supervisorNode = async (state: InterviewState) => {
     };
   }
 
+  // 2-3. 사용자가 답변을 보낸 경우(Questioning 단계) → 다음 질문 생성 위해 conversation_agent
+  if (lastMessage instanceof HumanMessage && task.interview_stage === "Questioning") {
+    console.log(`상태: Questioning / Human 메시지 -> conversation_agent 호출`);
+    return {
+      ...state,
+      flow_control: {
+        next_worker: "conversation_agent",
+      },
+    };
+  }
+
   // 4. LLM을 통한 지능적인 라우팅 결정
   const lastMessageType = lastMessage instanceof AIMessage ? "AI" : "Human";
   console.log(`상태: ${task.interview_stage} / ${lastMessageType} 메시지 -> LLM으로 라우팅 결정`);
@@ -133,7 +144,8 @@ export const supervisorNode = async (state: InterviewState) => {
 
   console.log("LLM Supervisor 호출...");
   let response = "";
-  for await (const chunk of model.stream(enhancedPrompt) as any) {
+  const stream = await model.stream(enhancedPrompt);
+  for await (const chunk of stream) {
     response += chunk.content;
   }
   const nextNode = response.toLowerCase().trim().replace(/"/g, "");

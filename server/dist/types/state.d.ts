@@ -1,5 +1,4 @@
 import { BaseMessage } from "@langchain/core/messages";
-import { StateGraph, StateGraphArgs } from "@langchain/langgraph";
 /** 사용자 식별 및 프로필 정보 */
 export interface UserContext {
     /** 시스템에서 사용자를 고유하게 식별하는 ID */
@@ -37,7 +36,7 @@ export interface GuardrailState {
 export interface ProactiveContext {
     /** 대화 시작의 원인 (예: "interview_reminder") */
     trigger_event_type: string;
-    /** 중복 실행 방지를 위한 이벤트 고유 ID */
+    /** 대화 시작의 원인 (예: "interview_reminder") */
     trigger_event_id: string;
     /** 이벤트 관련 추가 정보 (예: 면접 시간) */
     metadata: Record<string, any>;
@@ -52,7 +51,7 @@ export interface FlowControlState {
 /** 현재 면접 과업과 관련된 구체적인 정보 */
 export interface TaskState {
     /** 면접의 현재 단계 */
-    interview_stage: "Greeting" | "Questioning" | "Feedback" | "Farewell" | "Finished";
+    interview_stage: "Greeting" | "Questioning" | "Evaluating" | "Feedback" | "Farewell" | "Finished";
     /** 전체 질문 목록. 각 질문 객체는 'difficulty': number (0-100) 필드를 포함해야 함. */
     question_pool: Record<string, any>[];
     /** 이미 질문한 목록 */
@@ -81,20 +80,29 @@ export interface EvaluationState {
     /** LLM-as-a-Judge가 생성한 최종 평가 요약 */
     final_evaluation_summary?: string;
 }
+export declare const InterviewStateAnnotation: import("@langchain/langgraph").AnnotationRoot<{
+    messages: import("@langchain/langgraph").BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    user_context: import("@langchain/langgraph").BinaryOperatorAggregate<UserContext, UserContext>;
+    persona: import("@langchain/langgraph").BinaryOperatorAggregate<PersonaState, PersonaState>;
+    guardrails: import("@langchain/langgraph").BinaryOperatorAggregate<GuardrailState | undefined, GuardrailState | undefined>;
+    proactive: import("@langchain/langgraph").BinaryOperatorAggregate<ProactiveContext | undefined, ProactiveContext | undefined>;
+    flow_control: import("@langchain/langgraph").BinaryOperatorAggregate<FlowControlState, FlowControlState>;
+    task: import("@langchain/langgraph").BinaryOperatorAggregate<TaskState, TaskState>;
+    evaluation: import("@langchain/langgraph").BinaryOperatorAggregate<EvaluationState, EvaluationState>;
+}>;
 /**
- * AI 면접관 챗봇의 모든 상태를 포괄하는 최상위 통합 상태 인터페이스입니다.
+ * AI 면접관 챗봇의 모든 상태를 포괄하는 최상위 통합 상태 타입입니다.
  */
-export interface InterviewState {
-    messages: BaseMessage[];
-    user_context: UserContext;
-    persona: PersonaState;
-    guardrails?: GuardrailState;
-    proactive?: ProactiveContext;
-    flow_control: FlowControlState;
-    task: TaskState;
-    evaluation: EvaluationState;
-}
-export declare const interviewStateGraph: StateGraphArgs<InterviewState>;
+export type InterviewState = typeof InterviewStateAnnotation.State;
 export type InterviewStateType = InterviewState;
-export declare const InterviewStateAnnotation: StateGraph<StateGraphArgs<InterviewState>, InterviewState, Partial<InterviewState>, "__start__", import("@langchain/langgraph").StateDefinition, import("@langchain/langgraph").StateDefinition, import("@langchain/langgraph").StateDefinition>;
+export declare const interviewStateGraph: import("@langchain/langgraph").AnnotationRoot<{
+    messages: import("@langchain/langgraph").BinaryOperatorAggregate<BaseMessage[], BaseMessage[]>;
+    user_context: import("@langchain/langgraph").BinaryOperatorAggregate<UserContext, UserContext>;
+    persona: import("@langchain/langgraph").BinaryOperatorAggregate<PersonaState, PersonaState>;
+    guardrails: import("@langchain/langgraph").BinaryOperatorAggregate<GuardrailState | undefined, GuardrailState | undefined>;
+    proactive: import("@langchain/langgraph").BinaryOperatorAggregate<ProactiveContext | undefined, ProactiveContext | undefined>;
+    flow_control: import("@langchain/langgraph").BinaryOperatorAggregate<FlowControlState, FlowControlState>;
+    task: import("@langchain/langgraph").BinaryOperatorAggregate<TaskState, TaskState>;
+    evaluation: import("@langchain/langgraph").BinaryOperatorAggregate<EvaluationState, EvaluationState>;
+}>;
 //# sourceMappingURL=state.d.ts.map

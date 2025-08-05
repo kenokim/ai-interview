@@ -1,6 +1,6 @@
 import express from "express";
-import { body, validationResult } from "express-validator";
 import { interviewService } from "../services/InterviewService.js";
+import { body, validationResult } from "express-validator";
 const router = express.Router();
 // Validation middleware
 const startInterviewValidation = [
@@ -173,6 +173,23 @@ router.post("/end", endInterviewValidation, async (req, res) => {
  *       200:
  *         description: A list of active session IDs
  */
+// 실시간 스트림 (SSE)
+router.get("/stream/:sessionId", async (req, res) => {
+    const { sessionId } = req.params;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    try {
+        const iterator = interviewService.streamUpdates(sessionId);
+        for await (const chunk of iterator) {
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
+        res.end();
+    }
+    catch (error) {
+        res.status(404).json({ message: error.message });
+    }
+});
 router.get("/sessions", (req, res) => {
     try {
         const response = interviewService.listSessions();

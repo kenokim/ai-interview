@@ -1,15 +1,11 @@
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-
-import { InterviewState } from "../../../types/state.js";
-
 /**
  * conversationAgent
  * greeting 이후 사용자의 모든 입력을 처리한다.
  * - 사용자가 "평가" 같은 메타 명령을 주지 않는 한, 새 기술 질문을 생성한다.
  * - 이전 evaluation 결과에 따라 난이도를 조정(DDA)하는 로직은 technicalQuestionAgent 에서 가져왔다.
  */
-
 const singlePrompt = `당신은 사용자의 긴장을 풀어주면서도 전문성을 잃지 않는 베테랑 기술 면접관입니다. 당신의 목표는 딱딱한 질의응답이 아닌, 자연스러운 대화를 통해 지원자의 진짜 실력을 파악하는 것입니다.
 
 [면접 컨텍스트]
@@ -32,58 +28,50 @@ const singlePrompt = `당신은 사용자의 긴장을 풀어주면서도 전문
 실제 대화하는 것처럼 응답하세요.
 
 [응답]`;
-
-export const conversationAgent = async (state: InterviewState): Promise<Partial<InterviewState>> => {
-  console.log("💬 [conversationAgent] 실행");
-
-  const { user_context, task, messages } = state;
-  const last = messages[messages.length - 1];
-
-  // Human 입력이 아니면 그대로 반환
-  if (!(last instanceof HumanMessage)) return state;
-
-  // 메타 명령: "평가" 요청이 들어오면 단순 ACK
-  if (last.content.toString().includes("평가")) {
-    const ack = new AIMessage("평가 기능은 현재 단일 에이전트 모드에서 제공되지 않습니다. 다음 질문으로 넘어가겠습니다.");
-    return { ...state, messages: [...messages, ack] };
-  }
-
-  // 난이도 조정 (아주 단순)
-  const currentDifficulty = task.current_difficulty ?? 50;
-  const questionsAskedText = task.questions_asked?.map(q => typeof q === "string" ? q : q.text).join(", ") || "없음";
-
-  // 하나의 프롬프트로 질문을 생성 (stream)
+export const conversationAgent = async (state) => {
+    console.log("💬 [conversationAgent] 실행");
+    const { user_context, task, messages } = state;
+    const last = messages[messages.length - 1];
+    // Human 입력이 아니면 그대로 반환
+    if (!(last instanceof HumanMessage))
+        return state;
+    // 메타 명령: "평가" 요청이 들어오면 단순 ACK
+    if (last.content.toString().includes("평가")) {
+        const ack = new AIMessage("평가 기능은 현재 단일 에이전트 모드에서 제공되지 않습니다. 다음 질문으로 넘어가겠습니다.");
+        return { ...state, messages: [...messages, ack] };
+    }
+    // 난이도 조정 (아주 단순)
+    const currentDifficulty = task.current_difficulty ?? 50;
+    const questionsAskedText = task.questions_asked?.map(q => typeof q === "string" ? q : q.text).join(", ") || "없음";
+    // 하나의 프롬프트로 질문을 생성 (stream)
     const finalPrompt = singlePrompt
-    .replace("{last_message}", last.content.toString())
-    .replace("{user_profile}", JSON.stringify(user_context.profile))
-    .replace("{current_difficulty}", currentDifficulty.toString())
-    .replace("{questions_asked}", questionsAskedText);
-
-  const streamModel = new ChatGoogleGenerativeAI({ 
-    model: "gemini-2.0-flash", 
-    temperature: 0.7, 
-    streaming: true 
-  });
-  
-  let question = "";
-  const stream = await streamModel.stream(finalPrompt);
-  for await (const chunk of stream) {
-    question += chunk.content;
-  }
-  console.log("✅ 질문 생성 완료:", question);
-
-  const aiMsg = new AIMessage(question);
-  const questionObj = { text: question, type: "technical", difficulty: currentDifficulty, topic: "auto" };
-
-  return {
-    ...state,
-    messages: [...messages, aiMsg],
-    task: {
-      ...task,
-      current_question: questionObj,
-      questions_asked: [...(task.questions_asked || []), questionObj],
-      interview_stage: "Questioning",
-      current_difficulty: currentDifficulty,
-    },
-  };
+        .replace("{last_message}", last.content.toString())
+        .replace("{user_profile}", JSON.stringify(user_context.profile))
+        .replace("{current_difficulty}", currentDifficulty.toString())
+        .replace("{questions_asked}", questionsAskedText);
+    const streamModel = new ChatGoogleGenerativeAI({
+        model: "gemini-2.0-flash",
+        temperature: 0.7,
+        streaming: true
+    });
+    let question = "";
+    const stream = await streamModel.stream(finalPrompt);
+    for await (const chunk of stream) {
+        question += chunk.content;
+    }
+    console.log("✅ 질문 생성 완료:", question);
+    const aiMsg = new AIMessage(question);
+    const questionObj = { text: question, type: "technical", difficulty: currentDifficulty, topic: "auto" };
+    return {
+        ...state,
+        messages: [...messages, aiMsg],
+        task: {
+            ...task,
+            current_question: questionObj,
+            questions_asked: [...(task.questions_asked || []), questionObj],
+            interview_stage: "Questioning",
+            current_difficulty: currentDifficulty,
+        },
+    };
 };
+//# sourceMappingURL=conversationAgent.js.map

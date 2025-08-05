@@ -1,3 +1,3 @@
-import app from './app.js';
-export default app;
+import server from './app.js';
+export default server;
 //# sourceMappingURL=index.d.ts.map

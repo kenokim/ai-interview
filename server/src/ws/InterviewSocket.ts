@@ -29,6 +29,7 @@ export class InterviewSocket {
       console.log(`🎙️ [WS] 인터뷰 소켓 연결 - ${clientIp}`);
       let sessionId: string | null = null;
       let streamIterator: AsyncIterableIterator<any> | undefined;
+      let testTimer: NodeJS.Timeout | undefined;
 
       const startStream = async () => {
         if (!sessionId) {
@@ -62,6 +63,22 @@ export class InterviewSocket {
               sessionId = msg.sessionId;
               console.log(`🆔 [WS] 세션 초기화: ${sessionId}`);
               startStream();
+              // 테스트: 10초마다 서버가 임의 메시지 전송
+              if (!testTimer) {
+                // 10초마다 LangGraph에게 메시지를 요청해서 클라이언트로 전송 (테스트)
+                testTimer = setInterval(async () => {
+                  if (ws.readyState !== WebSocket.OPEN || !sessionId) return;
+                  try {
+                    // LangGraph 워크플로우에 "(서버 자동 메시지)"라는 텍스트를 사용자 입력으로 보낸다.
+                    const response = await interviewService.sendMessage({ sessionId, message: '(서버 자동 메시지, 면접자에게 아무 말이나 하세요. 면접자가 말이 없으면 재촉하세요.)' });
+                    // sendMessage 는 최종 메시지를 반환하므로 'response' 타입으로 그대로 전달
+                    const wsPayload = { type: 'response', data: response };
+                    ws.send(JSON.stringify(wsPayload));
+                  } catch (err) {
+                    console.error(`❌ [WS][${sessionId}] 자동 메시지 전송 실패:`, err);
+                  }
+                }, 10000);
+              }
               break;
             case 'user':
               if (!sessionId) {
@@ -92,6 +109,7 @@ export class InterviewSocket {
 
       ws.on('close', () => {
         streamIterator?.return?.();
+        if (testTimer) clearInterval(testTimer);
         console.log(`🔌 [WS][${sessionId}] 인터뷰 소켓 종료`);
       });
     });
