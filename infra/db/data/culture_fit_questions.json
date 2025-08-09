@@ -1,0 +1,125 @@
+{
+  "questions": [
+    {
+      "id": "CFQ-001",
+      "category": "ownership",
+      "prompt": "실패한 프로젝트를 끝까지 책임지고 정리했던 경험을 이야기해 주세요. 무엇이 잘못되었고, 본인이 무엇을 배웠는지 구체적으로 설명해 주세요.",
+      "importance": 5
+    },
+    {
+      "id": "CFQ-002",
+      "category": "collaboration",
+      "prompt": "동료와의 의견 충돌을 생산적으로 해결했던 사례를 설명해 주세요.",
+      "importance": 5
+    },
+    {
+      "id": "CFQ-003",
+      "category": "communication",
+      "prompt": "비기술 이해관계자에게 복잡한 기술적 결정을 효과적으로 설명한 경험을 말씀해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-004",
+      "category": "growth_mindset",
+      "prompt": "짧은 시간 안에 새로운 기술을 학습해 실무에 적용했던 사례를 설명해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-005",
+      "category": "customer_obsession",
+      "prompt": "고객(또는 사용자) 피드백을 제품/기능에 반영해 의미 있는 영향을 만든 경험을 이야기해 주세요.",
+      "importance": 5
+    },
+    {
+      "id": "CFQ-006",
+      "category": "bias_for_action",
+      "prompt": "정보가 불완전한 상황에서 신속히 결정을 내려 추진했던 사례를 설명해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-007",
+      "category": "craftsmanship",
+      "prompt": "품질(테스트, 문서, 리뷰)과 속도 사이의 트레이드오프를 잘 관리했던 경험을 알려주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-008",
+      "category": "reliability",
+      "prompt": "프로덕션 장애를 탐지·대응·복구했던 경험을 말씀해 주세요.",
+      "importance": 5
+    },
+    {
+      "id": "CFQ-009",
+      "category": "leadership",
+      "prompt": "직책과 무관하게 비공식 리더십을 발휘한 경험을 공유해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-010",
+      "category": "integrity",
+      "prompt": "동의하지 않는 결정에 대해 존중을 유지하며 반대 의견을 제시했던 경험을 말씀해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-011",
+      "category": "inclusion",
+      "prompt": "서로 다른 배경과 스타일을 가진 팀원들과 효과적으로 협업한 사례를 들려주세요.",
+      "importance": 3
+    },
+    {
+      "id": "CFQ-012",
+      "category": "mentorship",
+      "prompt": "피드백을 주고받아 상대의 성장을 도운 경험을 이야기해 주세요.",
+      "importance": 3
+    },
+    {
+      "id": "CFQ-013",
+      "category": "prioritization",
+      "prompt": "우선순위 충돌 상황에서 이해관계자와 조율해 합의를 이끌어낸 사례를 설명해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-014",
+      "category": "ownership",
+      "prompt": "어려운 버그를 집요하게 추적해 근본 원인을 제거한 경험을 들려주세요.",
+      "importance": 5
+    },
+    {
+      "id": "CFQ-015",
+      "category": "delivery",
+      "prompt": "타이트한 데드라인 속에서 품질을 유지하며 목표를 달성한 사례를 설명해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-016",
+      "category": "autonomy",
+      "prompt": "지시 없이 문제를 발견하고 자율적으로 해결한 경험을 공유해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-017",
+      "category": "security_privacy",
+      "prompt": "보안 또는 개인정보와 관련된 의사결정에서 양립하는 가치를 균형 있게 판단한 경험을 이야기해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-018",
+      "category": "remote_collaboration",
+      "prompt": "원격/하이브리드 환경에서 비동기 커뮤니케이션을 효과적으로 운영한 경험을 설명해 주세요.",
+      "importance": 3
+    },
+    {
+      "id": "CFQ-019",
+      "category": "data_driven",
+      "prompt": "데이터 기반으로 가설을 검증해 중요한 제품/기술 결정을 내린 경험을 말씀해 주세요.",
+      "importance": 4
+    },
+    {
+      "id": "CFQ-020",
+      "category": "resilience",
+      "prompt": "번아웃을 예방하거나 회복하며 지속 가능한 성과를 낸 경험을 공유해 주세요.",
+      "importance": 3
+    }
+  ]
+}
+

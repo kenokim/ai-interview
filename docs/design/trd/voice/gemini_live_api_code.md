@@ -99,4 +99,3 @@ export async function startLiveSession() {
 |-------|------|------|
 | Client → Server | Binary | 16 bit PCM 16 kHz 모노 오디오 청크 |
 | Server → Client | JSON | Gemini `server_content` 객체 (오디오 base64, 텍스트 전사 등) |
-
