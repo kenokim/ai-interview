@@ -10,7 +10,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: 'src/worklets/audio-processor.worklet.js',
+          src: 'src/worklets/audio-processor.worklet.ts',
           dest: '.'
         }
       ]

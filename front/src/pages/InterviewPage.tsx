@@ -22,11 +22,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import InterviewerImage from "@/assets/interviewer.png";
 import { startInterview, endInterview, sendMessage } from "@/services/api";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface InterviewState {
   resume: string;
   jobDescription: string;
   jobRole: string;
+  language: string;
   interviewType: string;
   experience: number;
 }
@@ -38,26 +40,35 @@ type ChatMessage = {
   isThinking?: boolean;
 };
 
-const getJobRoleDisplay = (role: string) => {
+const getJobRoleDisplay = (role: string, texts: any) => {
   const roles: { [key: string]: string } = {
-    'typescript': 'TypeScript 개발자',
-    'ai_agent': 'AI Agent 개발자',
-    'frontend': '프론트엔드 개발자',
-    'backend': '백엔드 개발자',
-    'fullstack': '풀스택 개발자',
-    'mobile': '모바일 개발자',
-    'devops': 'DevOps 엔지니어',
-    'data': '데이터 사이언티스트',
-    'pm': '프로덕트 매니저',
-    'designer': 'UI/UX 디자이너',
-    'qa': 'QA 엔지니어'
+    'backend': texts.backendDeveloper,
+    'frontend': texts.frontendDeveloper,
+    'typescript': 'TypeScript Developer',
+    'ai_agent': 'AI Agent Developer',
+    'fullstack': 'Fullstack Developer',
+    'mobile': 'Mobile Developer',
+    'devops': 'DevOps Engineer',
+    'data': 'Data Scientist',
+    'pm': 'Product Manager',
+    'designer': 'UI/UX Designer',
+    'qa': 'QA Engineer'
   };
   return roles[role] || role;
+};
+
+const getLanguageDisplay = (lang: string) => {
+  const languages: { [key: string]: string } = {
+    'english': 'English',
+    'korean': '한국어'
+  };
+  return languages[lang] || lang;
 };
 
 const InterviewPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { language, texts } = useLanguage();
   const state = location.state as InterviewState;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -236,6 +247,7 @@ const InterviewPage = () => {
 
           const payload = {
             jobRole: state.jobRole,
+            language: state.language,
             experience: getExperienceLevel(state.experience),
             interviewType: state.interviewType,
             resume: state.resume,
@@ -276,7 +288,7 @@ const InterviewPage = () => {
           );
         }
       } else {
-        navigate('/');
+        navigate(`/${language}`);
       }
     };
     initializeInterview();
@@ -352,13 +364,13 @@ const InterviewPage = () => {
     if (sessionId) {
       try {
         await endInterview({ sessionId });
-        navigate('/report', { state: { sessionId } });
+        navigate(`/${language}/report`, { state: { sessionId } });
       } catch (error) {
         console.error("Error ending interview:", error);
-        navigate('/report', { state: { sessionId } });
+        navigate(`/${language}/report`, { state: { sessionId } });
       }
     } else {
-      navigate('/report');
+      navigate(`/${language}/report`);
     }
   };
 
@@ -373,7 +385,7 @@ const InterviewPage = () => {
   };
 
   const getInterviewTypeDisplay = () => {
-    return state?.interviewType === 'technical' ? '기술면접' : '컬쳐핏면접';
+    return state?.interviewType === 'technical' ? texts.technicalInterview : texts.cultureInterview;
   };
   
   const formatTime = (totalSeconds: number) => {
@@ -395,7 +407,7 @@ const InterviewPage = () => {
     return null; 
   }
 
-  const { resume, jobDescription, jobRole, interviewType, experience } = state;
+  const { resume, jobDescription, jobRole, language, interviewType, experience } = state;
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
@@ -413,32 +425,36 @@ const InterviewPage = () => {
             </SheetTrigger>
             <SheetContent side="left" className="bg-white text-black">
               <SheetHeader>
-                <SheetTitle>현재 면접 설정</SheetTitle>
-                <SheetDescription>현재 진행중인 면접의 설정 정보입니다.</SheetDescription>
+                <SheetTitle>{texts.currentInterviewSettings}</SheetTitle>
+                <SheetDescription>{texts.settingsDescription}</SheetDescription>
               </SheetHeader>
               <div className="py-4 space-y-6 text-sm">
               <div>
-                <Label className="text-base font-semibold">직무</Label>
-                <p className="p-2 mt-1 rounded-md bg-gray-50">{getJobRoleDisplay(jobRole)}</p>
+                <Label className="text-base font-semibold">{texts.jobLabel}</Label>
+                <p className="p-2 mt-1 rounded-md bg-gray-50">{getJobRoleDisplay(jobRole, texts)}</p>
               </div>
               <div>
-                <Label className="text-base font-semibold">경력</Label>
-                <p className="p-2 mt-1 rounded-md bg-gray-50">{experience}년차</p>
+                <Label className="text-base font-semibold">{texts.languageLabel}</Label>
+                <p className="p-2 mt-1 rounded-md bg-gray-50">{getLanguageDisplay(state.language)}</p>
               </div>
               <div>
-                <Label className="text-base font-semibold">면접 유형</Label>
+                <Label className="text-base font-semibold">{texts.experienceShort}</Label>
+                <p className="p-2 mt-1 rounded-md bg-gray-50">{experience} {texts.experienceYears}</p>
+              </div>
+              <div>
+                <Label className="text-base font-semibold">{texts.interviewTypeShort}</Label>
                 <p className="p-2 mt-1 rounded-md bg-gray-50">{getInterviewTypeDisplay()}</p>
               </div>
               <div>
-                <Label htmlFor="resume-display" className="text-base font-semibold">이력서</Label>
+                <Label htmlFor="resume-display" className="text-base font-semibold">{texts.resumeDisplay}</Label>
                 <div id="resume-display" className="p-2 mt-1 overflow-y-auto rounded-md border bg-gray-50 max-h-48">
-                  <pre className="text-xs whitespace-pre-wrap font-sans">{resume || '제출되지 않음'}</pre>
+                  <pre className="text-xs whitespace-pre-wrap font-sans">{resume || texts.notSubmitted}</pre>
                 </div>
               </div>
               <div>
-                <Label htmlFor="jd-display" className="text-base font-semibold">채용 공고</Label>
+                <Label htmlFor="jd-display" className="text-base font-semibold">{texts.jobDescriptionDisplay}</Label>
                 <div id="jd-display" className="p-2 mt-1 overflow-y-auto rounded-md border bg-gray-50 max-h-48">
-                  <pre className="text-xs whitespace-pre-wrap font-sans">{jobDescription || '제출되지 않음'}</pre>
+                  <pre className="text-xs whitespace-pre-wrap font-sans">{jobDescription || texts.notSubmitted}</pre>
                 </div>
               </div>
             </div>
@@ -453,7 +469,7 @@ const InterviewPage = () => {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2 bg-gray-800 text-white border-gray-700">
-                <p className="text-sm">경과 시간: {formatTime(elapsedTime)}</p>
+                <p className="text-sm">{texts.elapsedTime}: {formatTime(elapsedTime)}</p>
               </PopoverContent>
             </Popover>
             <Button variant="ghost" onClick={() => setIsChatOpen(!isChatOpen)} className="text-white hover:bg-white/10">
@@ -467,12 +483,12 @@ const InterviewPage = () => {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>면접을 종료하시겠습니까?</AlertDialogTitle>
-                  <AlertDialogDescription>종료하시면, 면접 내용에 대한 최종 리포트 화면으로 이동합니다.</AlertDialogDescription>
+                  <AlertDialogTitle>{texts.endInterviewTitle}</AlertDialogTitle>
+                  <AlertDialogDescription>{texts.endInterviewDescription}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>취소</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleEndInterview}>종료하고 리포트 보기</AlertDialogAction>
+                  <AlertDialogCancel>{texts.cancel}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleEndInterview}>{texts.endAndReport}</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -518,7 +534,7 @@ const InterviewPage = () => {
         <div className={`w-full h-full flex flex-col transition-opacity duration-300 ease-in-out ${isChatOpen ? 'opacity-100 delay-200' : 'opacity-0'}`}>
           <div className="p-4 border-b border-white/10 flex-shrink-0 bg-white/10">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">면접 채팅</h3>
+              <h3 className="font-semibold">{texts.interviewChatTitle}</h3>
               <Button variant="ghost" size="sm" onClick={() => setIsChatOpen(false)} className="text-gray-400 hover:text-white">
                 ✕
               </Button>
@@ -597,7 +613,7 @@ const InterviewPage = () => {
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="답변을 입력하세요..."
+                placeholder={texts.chatPlaceholder}
                 className="bg-gray-800/80 border-gray-700 rounded-full h-11 pr-12"
               />
               <Button

@@ -9,9 +9,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Upload, FileText, Briefcase, Mic, MessageSquare, Settings, ChevronDown } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { language, texts } = useLanguage();
   const [resume, setResume] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [jobRole, setJobRole] = useState('backend');
@@ -20,11 +22,12 @@ const Index = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const handleStartInterview = () => {
-    navigate('/interview', {
+    navigate(`/${language}/interview`, {
       state: {
         resume,
         jobDescription,
         jobRole,
+        language,
         interviewType,
         experience: experience[0]
       }
@@ -39,30 +42,31 @@ const Index = () => {
             {/* Header */}
             <div className="text-center mb-6">
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-                AI 인터뷰
+                {texts.title}
               </h1>
               <p className="text-m text-gray-600">
-                면접 시작 전에 스피커와 마이크가 올바르게 연결되어 있는지 확인해주세요.
+                {texts.subtitle}
               </p>
             </div>
             
             <div className="space-y-6">
               {/* Job Role Selection */}
               <div>
-                <Label className="text-lg font-semibold text-gray-900 mb-2 block">직무 선택</Label>
+                <Label className="text-lg font-semibold text-gray-900 mb-2 block">{texts.jobSelectionLabel}</Label>
                 <Select value={jobRole} onValueChange={setJobRole}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="직무를 선택해주세요" />
+                    <SelectValue placeholder={texts.jobSelectionPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="backend">백엔드 개발자</SelectItem>
+                    <SelectItem value="backend">{texts.backendDeveloper}</SelectItem>
+                    <SelectItem value="frontend">{texts.frontendDeveloper}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Interview Type Selection */}
               <div>
-                <Label className="text-lg font-semibold text-gray-900 mb-2 block">면접 유형</Label>
+                <Label className="text-lg font-semibold text-gray-900 mb-2 block">{texts.interviewTypeLabel}</Label>
                 <RadioGroup 
                   value={interviewType} 
                   onValueChange={setInterviewType}
@@ -71,13 +75,13 @@ const Index = () => {
                   <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
                     <RadioGroupItem value="technical" id="technical" />
                     <Label htmlFor="technical" className="flex-1 cursor-pointer">
-                      <div className="font-medium">기술면접</div>
+                      <div className="font-medium">{texts.technicalInterview}</div>
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
                     <RadioGroupItem value="culture" id="culture" />
                     <Label htmlFor="culture" className="flex-1 cursor-pointer">
-                      <div className="font-medium">컬쳐핏면접</div>
+                      <div className="font-medium">{texts.cultureInterview}</div>
                     </Label>
                   </div>
                 </RadioGroup>
@@ -86,9 +90,9 @@ const Index = () => {
               {/* Experience Level */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <Label className="text-lg font-semibold text-gray-900">경력 연차</Label>
+                  <Label className="text-lg font-semibold text-gray-900">{texts.experienceLabel}</Label>
                   <div className="text-base font-semibold text-indigo-500">
-                    {experience[0]}년차
+                    {experience[0]} {texts.experienceYears}
                   </div>
                 </div>
                 <Slider
@@ -104,17 +108,17 @@ const Index = () => {
               <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <CollapsibleTrigger asChild>
                   <div className="flex items-center cursor-pointer text-gray-500 hover:text-gray-800">
-                    <h3 className="text-sm font-medium">세부 설정</h3>
+                    <h3 className="text-sm font-medium">{texts.detailsLabel}</h3>
                     <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <Label htmlFor="resume" className="text-base font-semibold text-gray-900 mb-2 block">이력서 (선택)</Label>
+                      <Label htmlFor="resume" className="text-base font-semibold text-gray-900 mb-2 block">{texts.resumeLabel}</Label>
                       <Textarea
                         id="resume"
-                        placeholder="이력서 내용을 붙여넣으세요."
+                        placeholder={texts.resumePlaceholder}
                         value={resume}
                         onChange={(e) => setResume(e.target.value)}
                         rows={6}
@@ -122,10 +126,10 @@ const Index = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="job-description" className="text-base font-semibold text-gray-900 mb-2 block">채용공고 (선택)</Label>
+                      <Label htmlFor="job-description" className="text-base font-semibold text-gray-900 mb-2 block">{texts.jobDescriptionLabel}</Label>
                       <Textarea
                         id="job-description"
-                        placeholder="채용공고 내용을 붙여넣으세요."
+                        placeholder={texts.jobDescriptionPlaceholder}
                         value={jobDescription}
                         onChange={(e) => setJobDescription(e.target.value)}
                         rows={6}
@@ -145,11 +149,11 @@ const Index = () => {
                 size="lg"
                 className="w-full bg-gradient-to-r from-indigo-400 to-purple-400 hover:from-indigo-500 hover:to-purple-500 text-white font-medium py-3 text-lg shadow-md"
               >
-                면접 시작하기
+                {texts.startInterviewButton}
               </Button>
               {!jobRole && (
                 <p className="text-xs text-gray-500 mt-2">
-                  직무를 선택해주세요
+                  {texts.selectJobRoleMessage}
                 </p>
               )}
             </div>
