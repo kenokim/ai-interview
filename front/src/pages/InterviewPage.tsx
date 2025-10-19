@@ -247,7 +247,7 @@ const InterviewPage = () => {
 
           const payload = {
             jobRole: state.jobRole,
-            language: state.language,
+            language: stateLanguage,
             experience: getExperienceLevel(state.experience),
             interviewType: state.interviewType,
             resume: state.resume,
@@ -407,7 +407,7 @@ const InterviewPage = () => {
     return null; 
   }
 
-  const { resume, jobDescription, jobRole, language, interviewType, experience } = state;
+  const { resume, jobDescription, jobRole, language: stateLanguage, interviewType, experience } = state;
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
@@ -435,7 +435,7 @@ const InterviewPage = () => {
               </div>
               <div>
                 <Label className="text-base font-semibold">{texts.languageLabel}</Label>
-                <p className="p-2 mt-1 rounded-md bg-gray-50">{getLanguageDisplay(state.language)}</p>
+                <p className="p-2 mt-1 rounded-md bg-gray-50">{getLanguageDisplay(stateLanguage)}</p>
               </div>
               <div>
                 <Label className="text-base font-semibold">{texts.experienceShort}</Label>
