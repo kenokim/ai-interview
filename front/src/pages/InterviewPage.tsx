@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, MicOff, MessageSquare, Send, Settings, LogOut, ImageOff, Loader2, Timer } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, Settings, LogOut, ImageOff, Loader2, Timer, ArrowRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -23,6 +23,7 @@ import InterviewerImage from "@/assets/interviewer.png";
 import { startInterview, endInterview, sendMessage } from "@/services/api";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLanguage } from "@/contexts/LanguageContext";
+import cultureFitQuestions from "@/assets/culturefit_questions.json";
 
 interface InterviewState {
   resume: string;
@@ -88,6 +89,7 @@ const InterviewPage = () => {
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [askedQuestionIds, setAskedQuestionIds] = useState<number[]>([]);
 
   // WebSocket 연결
   useEffect(() => {
@@ -360,6 +362,86 @@ const InterviewPage = () => {
     }
   };
 
+  const handleNextQuestion = async () => {
+    if (!sessionId || isSending) return;
+
+    // 컬쳐핏 모드일 때 JSON에서 랜덤 질문 가져오기
+    if (state?.interviewType === 'culture') {
+      // 아직 물어보지 않은 질문들 필터링
+      const remainingQuestions = cultureFitQuestions.questions.filter(
+        q => !askedQuestionIds.includes(q.id)
+      );
+
+      if (remainingQuestions.length === 0) {
+        // 모든 질문을 다 물어봤을 경우
+        const endMessage = language === 'ko' 
+          ? '모든 질문이 완료되었습니다. 면접을 종료하시겠습니까?' 
+          : 'All questions have been completed. Would you like to end the interview?';
+        setChatMessages(prev => [
+          ...prev,
+          { id: Date.now(), type: 'ai', message: endMessage }
+        ]);
+        return;
+      }
+
+      // 랜덤으로 질문 선택
+      const randomIndex = Math.floor(Math.random() * remainingQuestions.length);
+      const selectedQuestion = remainingQuestions[randomIndex];
+      
+      // 언어에 따른 질문 텍스트
+      const questionText = language === 'ko' 
+        ? selectedQuestion.question 
+        : selectedQuestion.question_en;
+
+      // 질문을 채팅에 추가
+      setChatMessages(prev => [
+        ...prev,
+        { id: Date.now(), type: 'ai', message: questionText }
+      ]);
+
+      // 물어본 질문 ID 추가
+      setAskedQuestionIds(prev => [...prev, selectedQuestion.id]);
+      return;
+    }
+
+    // 기술 면접 모드 (기존 로직)
+    const thinkingMessage: ChatMessage = {
+      id: Date.now(),
+      type: 'ai',
+      message: '...',
+      isThinking: true,
+    };
+
+    setChatMessages(prev => [...prev, thinkingMessage]);
+    setIsSending(true);
+    thinkingIdRef.current = thinkingMessage.id;
+
+    const nextQuestionText = language === 'ko' ? '다음 질문을 해주세요.' : 'Please give me the next question.';
+
+    if (wsReady && wsRef.current) {
+      const wsPayload = { type: 'user', text: nextQuestionText };
+      wsRef.current.send(JSON.stringify(wsPayload));
+    } else {
+      try {
+        const apiPayload = { sessionId, message: nextQuestionText };
+        const response = await sendMessage(apiPayload);
+        setChatMessages(prev => prev.map(m => m.id === thinkingMessage.id ? { ...m, message: response.message, isThinking: false } : m));
+      } catch (error) {
+        console.error('❌ [UI] 메시지 전송 실패:', error);
+        setChatMessages(prev =>
+          prev.map(msg =>
+            msg.id === thinkingMessage.id
+              ? { ...msg, message: '서버 오류: 메시지를 전송할 수 없습니다.', isThinking: false }
+              : msg
+          )
+        );
+      } finally {
+        setIsSending(false);
+        thinkingIdRef.current = null;
+      }
+    }
+  };
+
   const handleEndInterview = async () => {
     if (sessionId) {
       try {
@@ -410,13 +492,13 @@ const InterviewPage = () => {
   const { resume, jobDescription, jobRole, language: stateLanguage, interviewType, experience } = state;
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-indigo-500/10 -z-10"></div>
       <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
 
-      <div className={`flex-1 flex flex-col transition-all duration-500 ease-in-out ${isChatOpen ? 'w-3/5' : 'w-full'}`}>
-        <div className="relative z-10 p-6 flex items-center justify-between">
+      <div className={`flex-1 flex flex-col transition-all duration-500 ease-in-out w-full md:w-auto ${isChatOpen ? 'md:w-3/5' : 'md:w-full'}`}>
+        <div className="relative z-10 p-3 md:p-6 flex items-center justify-between">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" className="text-white hover:bg-white/10">
@@ -496,60 +578,76 @@ const InterviewPage = () => {
         </div>
 
         <div className="relative z-10 flex-1 flex items-center justify-center px-6">
-          <div className="text-center space-y-8">
+          <div className="text-center space-y-4 md:space-y-8">
             <div className="relative" onClick={() => setShowAvatar(!showAvatar)}>
-              <div className={`w-64 h-64 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105`}>
-                <div className="w-[15.25rem] h-[15.25rem] bg-gradient-to-br from-blue-300 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
+              <div className={`w-40 h-40 md:w-64 md:h-64 mx-auto bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center shadow-2xl cursor-pointer transition-transform duration-300 hover:scale-105`}>
+                <div className="w-[9.5rem] h-[9.5rem] md:w-[15.25rem] md:h-[15.25rem] bg-gradient-to-br from-blue-300 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
                   {showAvatar ? (
                     <img src={InterviewerImage} alt="AI Interviewer" className="w-full h-full object-cover select-none pointer-events-none" />
                   ) : (
-                    <Settings className="h-24 w-24 text-white" />
+                    <Settings className="h-12 w-12 md:h-24 md:w-24 text-white" />
                   )}
                 </div>
               </div>
               {!showAvatar && (
-                <div className="absolute top-5 right-5 bg-gray-900/50 p-2 rounded-full border-2 border-gray-500">
-                  <ImageOff className="h-4 w-4 text-white" />
+                <div className="absolute top-3 right-3 md:top-5 md:right-5 bg-gray-900/50 p-1.5 md:p-2 rounded-full border-2 border-gray-500">
+                  <ImageOff className="h-3 w-3 md:h-4 md:w-4 text-white" />
                 </div>
               )}
             </div>
-            <div className="flex justify-center pt-8">
+            <div className="flex justify-center pt-4 md:pt-8">
               <Button
                 onClick={toggleRecording}
                 size="lg"
-                className={`rounded-full w-20 h-20 flex items-center justify-center ${
+                className={`rounded-full w-16 h-16 md:w-20 md:h-20 flex items-center justify-center ${
                   isRecording 
                     ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                     : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                {isRecording ? <MicOff className="h-12 w-12" /> : <Mic className="h-12 w-12" />}
+                {isRecording ? <MicOff className="h-8 w-8 md:h-12 md:w-12" /> : <Mic className="h-8 w-8 md:h-12 md:w-12" />}
               </Button>
             </div>
           </div>
         </div>
+
+        {/* Next 버튼 - 우측 하단 고정, 모바일에서 채팅창과 함께 이동 */}
+        <div className={`fixed right-4 md:right-6 bottom-4 md:bottom-6 z-40 transition-transform duration-500 ease-in-out ${isChatOpen ? '-translate-y-[50vh] md:translate-y-0' : 'translate-y-0'}`}>
+          <Button
+            onClick={handleNextQuestion}
+            size="lg"
+            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-lg px-6 py-6 flex items-center gap-2 select-none"
+          >
+            <span className="font-semibold text-base md:text-lg">{texts.next || 'Next'}</span>
+            {isSending ? (
+              <Loader2 className="h-5 w-5 md:h-6 md:w-6 animate-spin" />
+            ) : (
+              <ArrowRight className="h-5 w-5 md:h-6 md:w-6" />
+            )}
+          </Button>
+        </div>
       </div>
 
-      <div className={`flex flex-col bg-white/5 backdrop-blur-xl border-l border-white/10 text-white shadow-2xl transition-all duration-500 ease-in-out z-50 overflow-hidden whitespace-nowrap ${isChatOpen ? 'w-2/5' : 'w-0'}`}>
+      <div className={`fixed md:relative bottom-0 md:bottom-auto right-0 md:right-auto flex flex-col bg-white/5 backdrop-blur-xl border-t md:border-t-0 md:border-l border-white/10 text-white shadow-2xl z-50 overflow-hidden transition-transform md:transition-all duration-500 ease-in-out w-full h-1/2 md:h-full ${isChatOpen ? 'translate-y-0 md:w-2/5' : 'translate-y-full md:w-0'}`}>
         <div className={`w-full h-full flex flex-col transition-opacity duration-300 ease-in-out ${isChatOpen ? 'opacity-100 delay-200' : 'opacity-0'}`}>
-          <div className="p-4 border-b border-white/10 flex-shrink-0 bg-white/10">
+          <div className="p-2 md:p-4 border-b border-white/10 flex-shrink-0 bg-white/10">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">{texts.interviewChatTitle}</h3>
+              <h3 className="font-semibold text-sm md:text-base">{texts.interviewChatTitle}</h3>
               <Button variant="ghost" size="sm" onClick={() => setIsChatOpen(false)} className="text-gray-400 hover:text-white">
                 ✕
               </Button>
             </div>
           </div>
-          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-white/10">
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3 md:space-y-6 bg-white/10">
             {chatMessages.map((chat) => (
-              <div key={chat.id} className={`flex items-start gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
+              <div key={chat.id} className={`flex items-start gap-2 md:gap-3 ${chat.type === 'user' ? 'justify-end' : ''}`}>
                 {chat.type === 'ai' && (
-                  <Avatar className="w-8 h-8 border border-white/20">
+                  <Avatar className="w-6 h-6 md:w-8 md:h-8 border border-white/20 flex-shrink-0">
                     <AvatarImage src={InterviewerImage} alt="AI Interviewer" />
                     <AvatarFallback className="bg-gray-700 text-xs">AI</AvatarFallback>
                   </Avatar>
                 )}
-                <div className={`max-w-[80%] p-3 rounded-2xl ${chat.type === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-800/80 text-gray-200 rounded-bl-none'}`}>
+                <div className={`max-w-[85%] md:max-w-[80%] p-2 md:p-3 rounded-xl md:rounded-2xl ${chat.type === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-800/80 text-gray-200 rounded-bl-none'}`}>
                   {chat.isThinking ? (
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
@@ -599,14 +697,14 @@ const InterviewPage = () => {
                   )}
                 </div>
                 {chat.type === 'user' && (
-                  <Avatar className="w-8 h-8 border border-white/20">
+                  <Avatar className="w-6 h-6 md:w-8 md:h-8 border border-white/20 flex-shrink-0">
                     <AvatarFallback className="bg-gray-600 text-xs">U</AvatarFallback>
                   </Avatar>
                 )}
               </div>
             ))}
           </div>
-          <div className="p-4 border-t border-white/10 flex-shrink-0 bg-white/10">
+          <div className="p-2 md:p-4 border-t border-white/10 flex-shrink-0 bg-white/10">
             <div className="relative">
               <Input
                 ref={inputRef}
@@ -614,15 +712,14 @@ const InterviewPage = () => {
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={texts.chatPlaceholder}
-                className="bg-gray-800/80 border-gray-700 rounded-full h-11 pr-12"
+                className="bg-gray-800/80 border-gray-700 rounded-full h-9 md:h-11 pr-10 md:pr-12 text-sm md:text-base"
               />
               <Button
                 onClick={handleSendMessage}
                 size="icon"
-                className="absolute top-1/2 right-2 -translate-y-1/2 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400"
-                disabled={isSending || !currentMessage.trim() || !wsReady}
+                className="absolute top-1/2 right-1.5 md:right-2 -translate-y-1/2 w-7 h-7 md:w-8 md:h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {isSending ? <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" /> : <Send className="h-3 w-3 md:h-4 md:w-4" />}
               </Button>
             </div>
           </div>

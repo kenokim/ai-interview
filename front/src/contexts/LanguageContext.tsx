@@ -69,6 +69,7 @@ const texts = {
     interviewChatTitle: 'Interview Chat',
     chatPlaceholder: 'Enter your answer...',
     elapsedTime: 'Elapsed Time',
+    next: 'Next',
     
     // Languages
     english: 'English',
@@ -126,6 +127,7 @@ const texts = {
     interviewChatTitle: '면접 채팅',
     chatPlaceholder: '답변을 입력하세요...',
     elapsedTime: '경과 시간',
+    next: '다음',
     
     // Languages
     english: 'English',

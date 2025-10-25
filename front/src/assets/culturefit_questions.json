@@ -1,0 +1,40 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "category": "teamwork",
+      "question": "팀 프로젝트에서 의견 충돌이 있었던 경험과 그것을 어떻게 해결했는지 말씀해 주세요.",
+      "question_en": "Tell me about a time when you had a disagreement in a team project and how you resolved it.",
+      "keywords": ["팀워크", "갈등 해결", "커뮤니케이션", "협업"]
+    },
+    {
+      "id": 2,
+      "category": "challenge",
+      "question": "업무 중 가장 어려웠던 도전 과제는 무엇이었으며, 어떻게 극복했나요?",
+      "question_en": "What was the most challenging task you faced at work, and how did you overcome it?",
+      "keywords": ["문제 해결", "도전", "성장", "극복"]
+    },
+    {
+      "id": 3,
+      "category": "failure",
+      "question": "업무에서 실패했던 경험과 그로부터 무엇을 배웠는지 말씀해 주세요.",
+      "question_en": "Tell me about a failure you experienced at work and what you learned from it.",
+      "keywords": ["실패", "학습", "성장", "개선"]
+    },
+    {
+      "id": 4,
+      "category": "leadership",
+      "question": "팀을 이끌거나 동료들에게 영향을 준 경험이 있나요?",
+      "question_en": "Have you ever led a team or influenced your colleagues?",
+      "keywords": ["리더십", "영향력", "동기부여", "협업"]
+    },
+    {
+      "id": 5,
+      "category": "values",
+      "question": "업무에서 가장 중요하게 생각하는 가치는 무엇인가요?",
+      "question_en": "What values do you consider most important in your work?",
+      "keywords": ["가치관", "원칙", "신념", "직업관"]
+    }
+  ]
+}
+
