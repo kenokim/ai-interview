@@ -25,6 +25,7 @@ lerna-debug.log*
 
 # IDEs and editors
 .idea
+.cursor/
 .cursor/rules
 .cursor-docs
 .vscode/*
