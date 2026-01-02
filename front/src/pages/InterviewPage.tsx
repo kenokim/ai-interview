@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,26 +20,13 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import InterviewerImage from "@/assets/interviewer.png";
-import { startInterview, endInterview, sendMessage } from "@/services/api";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLanguage } from "@/contexts/LanguageContext";
-import cultureFitQuestions from "@/assets/culturefit_questions.json";
+import { useInterviewPageController } from "@/hooks/useInterviewPageController";
 
-interface InterviewState {
-  resume: string;
-  jobDescription: string;
-  jobRole: string;
-  language: string;
-  interviewType: string;
-  experience: number;
-}
-
-type ChatMessage = {
-  id: number;
-  type: 'ai' | 'user';
-  message: string;
-  isThinking?: boolean;
-};
+import type {
+  InterviewStateType,
+} from "@/types/interview";
 
 const getJobRoleDisplay = (role: string, texts: any) => {
   const roles: { [key: string]: string } = {
@@ -70,420 +57,34 @@ const InterviewPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { language, texts } = useLanguage();
-  const state = location.state as InterviewState;
-
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(() => {
-    const saved = localStorage.getItem("isChatOpen");
-    return saved ? JSON.parse(saved) : false;
+  const state = location.state as InterviewStateType | undefined;
+  const {
+    sessionId,
+    isChatOpen,
+    setIsChatOpen,
+    isRecording,
+    microphoneEnabled,
+    toggleRecording,
+    showAvatar,
+    setShowAvatar,
+    chatMessages,
+    currentMessage,
+    setCurrentMessage,
+    isSending,
+    elapsedTime,
+    chatContainerRef,
+    inputRef,
+    handleSendMessage,
+    handleNextQuestion,
+    handleEndInterview,
+    handleKeyPress,
+    getInterviewTypeDisplay,
+    formatTime,
+  } = useInterviewPageController({
+    state,
+    appLanguage: language,
+    navigate,
   });
-  const [isRecording, setIsRecording] = useState(false);
-  const [showAvatar, setShowAvatar] = useState(true);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const WS_URL = (import.meta as any).env.VITE_WS_URL || 'ws://localhost:3000/ws/interview';
-  const wsRef = useRef<WebSocket | null>(null);
-  const [wsReady, setWsReady] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const thinkingIdRef = useRef<number | null>(null);
-  const chatContainerRef = useRef<HTMLDivElement | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [askedQuestionIds, setAskedQuestionIds] = useState<number[]>([]);
-
-  // WebSocket 연결
-  useEffect(() => {
-    if (!sessionId) return;
-    console.log('🔗 [UI] WebSocket 연결 시도:', WS_URL);
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('🔌 [UI] WebSocket 연결 성공');
-      const initPayload = { type: 'init', sessionId };
-      console.log('📤 [UI] 세션 초기화 전송:', initPayload);
-      ws.send(JSON.stringify(initPayload));
-      setWsReady(true);
-      console.log('✅ [UI] WebSocket 준비 완료');
-    };
-
-    ws.onmessage = (e) => {
-      console.log('📥 [UI] WebSocket 메시지 수신:', e.data);
-      const { type, chunk, data } = JSON.parse(e.data);
-      console.log('📋 [UI] 파싱된 메시지:', { type, chunk, data });
-      
-      if (type === 'chunk') {
-        const [mode, payload] = chunk;
-        console.log('📦 [UI] 청크 수신:', { mode, payload });
-        // 1) 서버 테스트용 ping 청크를 채팅창에 표시
-        if (mode === 'ping') {
-          setChatMessages(prev => [
-            ...prev,
-            {
-              id: Date.now(),
-              type: 'ai',
-              message: `🟢 서버 ping: ${new Date(payload.serverTime).toLocaleTimeString()}`,
-            },
-          ]);
-        }
-
-        // 2) LLM 토큰 스트림 처리
-        if (mode === 'messages') {
-          const token = payload[0]?.content || '';
-          console.log('💬 [UI] 토큰 수신:', token);
-
-          if (thinkingIdRef.current) {
-            // 기존 placeholder 업데이트
-            setChatMessages(prev => prev.map(m => m.id === thinkingIdRef.current ? { ...m, message: m.message + token } : m));
-          } else {
-            // placeholder 가 없으면 새로 만들고 토큰을 넣는다 (서버 자동 메시지 스트림 등)
-            const newId = Date.now();
-            thinkingIdRef.current = newId;
-            setChatMessages(prev => [
-              ...prev,
-              { id: newId, type: 'ai', message: token, isThinking: true },
-            ]);
-          }
-        }
-      }
-      if (type === 'response') {
-        console.log('✅ [UI] 최종 응답 수신:', data);
-
-        const updatePlaceholder = (placeholderId: number | null) => {
-          if (!placeholderId) return false;
-          let updated = false;
-          setChatMessages(prev => prev.map(m => {
-            if (m.id === placeholderId) {
-              updated = true;
-              return { ...m, message: data.message, isThinking: false };
-            }
-            return m;
-          }));
-          return updated;
-        };
-
-        // 1) 우선 thinkingIdRef 로 업데이트 시도
-        let handled = updatePlaceholder(thinkingIdRef.current);
-
-        // 2) 실패하면 가장 오래된 isThinking 메시지 찾아 업데이트
-        if (!handled) {
-          const firstThinking = chatMessages.find(m => m.isThinking);
-          handled = updatePlaceholder(firstThinking ? firstThinking.id : null);
-        }
-
-        // 3) 그래도 못했으면, 직전에 추가된 AI 메시지와 동일한지 확인 후 중복 방지
-        if (!handled) {
-          setChatMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last && last.type === 'ai' && last.message.trim() === data.message.trim()) {
-              return prev; // 이미 같은 내용이 있다면 추가하지 않음
-            }
-            return [
-              ...prev,
-              { id: Date.now(), type: 'ai', message: data.message },
-            ];
-          });
-        }
-
-        setIsSending(false);
-        thinkingIdRef.current = null;
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('🔌 [UI] WebSocket 연결 종료');
-      setWsReady(false);
-    };
-    ws.onerror = (error) => {
-      console.error('❌ [UI] WebSocket 오류:', error);
-      setWsReady(false);
-    };
-
-    return () => ws.close();
-  }, [sessionId]);
-
-  useEffect(() => {
-    localStorage.setItem("isChatOpen", JSON.stringify(isChatOpen));
-  }, [isChatOpen]);
-
-  // 새 메시지 도착 시 스크롤을 맨 아래로 이동
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [chatMessages, isChatOpen]);
-
-  useEffect(() => {
-    if (sessionId) {
-      const timer = setInterval(() => {
-        // This is a placeholder logic for start time.
-        // In a real app, you would get the start time from the session.
-        const start = new Date(parseInt(sessionId.split('_')[1])).getTime();
-        const now = Date.now();
-        setElapsedTime(Math.floor((now - start) / 1000));
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    const initializeInterview = async () => {
-      if (state) {
-        const thinkingMessageId = Date.now();
-        setChatMessages([
-          {
-            id: thinkingMessageId,
-            type: 'ai',
-            message: '...',
-            isThinking: true,
-          },
-        ]);
-
-        try {
-          const getExperienceLevel = (exp: number): string => {
-            if (exp <= 2) return 'junior';
-            if (exp <= 5) return 'mid-level';
-            return 'senior';
-          };
-
-          const payload = {
-            jobRole: state.jobRole,
-            language: stateLanguage,
-            experience: getExperienceLevel(state.experience),
-            interviewType: state.interviewType,
-            resume: state.resume,
-            jobDescription: state.jobDescription,
-            userName: "사용자",
-          };
-          console.log("Interview Start Request Payload:", payload);
-          const response = await startInterview(payload);
-          console.log("Interview Start Response:", response);
-
-          if (response && response.sessionId) {
-            setSessionId(response.sessionId);
-            setChatMessages(prev =>
-              prev.map(msg =>
-                msg.id === thinkingMessageId
-                  ? { ...msg, message: response.message, isThinking: false }
-                  : msg
-              )
-            );
-          } else {
-            console.error("Failed to start interview: Invalid response structure", response);
-            setChatMessages(prev =>
-              prev.map(msg =>
-                msg.id === thinkingMessageId
-                  ? { ...msg, message: "면접 시작에 실패했습니다. 서버 응답이 올바르지 않습니다.", isThinking: false }
-                  : msg
-              )
-            );
-          }
-        } catch (error) {
-          console.error("Error starting interview:", error);
-          setChatMessages(prev =>
-            prev.map(msg =>
-              msg.id === thinkingMessageId
-                ? { ...msg, message: "서버와 통신 중 오류가 발생했습니다.", isThinking: false }
-                : msg
-            )
-          );
-        }
-      } else {
-        navigate(`/${language}`);
-      }
-    };
-    initializeInterview();
-  }, [state, navigate]);
-
-  const handleSendMessage = async () => {
-    console.log('🟢 [UI] handleSendMessage 호출됨');
-    console.log('🟢 [UI] currentMessage:', currentMessage);
-    console.log('🟢 [UI] sessionId:', sessionId);
-    console.log('🟢 [UI] isSending:', isSending);
-    console.log('🟢 [UI] wsReady:', wsReady);
-    console.log('🟢 [UI] wsRef.current:', wsRef.current);
-
-    if (currentMessage.trim() && sessionId && !isSending) {
-      const userMessage: ChatMessage = {
-        id: Date.now(),
-        type: 'user',
-        message: currentMessage.trim(),
-      };
-      
-      const thinkingMessage: ChatMessage = {
-        id: Date.now() + 1,
-        type: 'ai',
-        message: '...',
-        isThinking: true,
-      };
-
-      console.log('📝 [UI] 메시지 객체 생성:', { userMessage, thinkingMessage });
-      setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
-      setCurrentMessage('');
-      inputRef.current?.focus();
-      setIsSending(true);
-      thinkingIdRef.current = thinkingMessage.id;
-
-      if (wsReady && wsRef.current) {
-        console.log('🔌 [UI] WebSocket으로 메시지 전송 시도');
-        const wsPayload = { type: 'user', text: userMessage.message };
-        console.log('📤 [UI] WS Payload:', wsPayload);
-        wsRef.current.send(JSON.stringify(wsPayload));
-        console.log('✅ [UI] WebSocket 메시지 전송 완료');
-      } else {
-        console.log('🔄 [UI] WebSocket 미연결, REST API 사용');
-        try {
-          const apiPayload = { sessionId, message: userMessage.message };
-          console.log('📤 [UI] API Payload:', apiPayload);
-          const response = await sendMessage(apiPayload);
-          console.log('📥 [UI] API Response:', response);
-          setChatMessages(prev => prev.map(m => m.id === thinkingMessage.id ? { ...m, message: response.message, isThinking: false } : m));
-        } catch (error) {
-          console.error('❌ [UI] 메시지 전송 실패:', error);
-          setChatMessages(prev =>
-            prev.map(msg =>
-              msg.id === thinkingMessage.id
-                ? { ...msg, message: '서버 오류: 메시지를 전송할 수 없습니다.', isThinking: false }
-                : msg
-            )
-          );
-        } finally {
-          setIsSending(false);
-          thinkingIdRef.current = null;
-        }
-      }
-    } else {
-      console.log('⚠️ [UI] 메시지 전송 조건 불충족:', {
-        hasMessage: !!currentMessage.trim(),
-        hasSessionId: !!sessionId,
-        notSending: !isSending
-      });
-    }
-  };
-
-  const handleNextQuestion = async () => {
-    if (!sessionId || isSending) return;
-
-    // 컬쳐핏 모드일 때 JSON에서 랜덤 질문 가져오기
-    if (state?.interviewType === 'culture') {
-      // 아직 물어보지 않은 질문들 필터링
-      const remainingQuestions = cultureFitQuestions.questions.filter(
-        q => !askedQuestionIds.includes(q.id)
-      );
-
-      if (remainingQuestions.length === 0) {
-        // 모든 질문을 다 물어봤을 경우
-        const endMessage = language === 'ko' 
-          ? '모든 질문이 완료되었습니다. 면접을 종료하시겠습니까?' 
-          : 'All questions have been completed. Would you like to end the interview?';
-        setChatMessages(prev => [
-          ...prev,
-          { id: Date.now(), type: 'ai', message: endMessage }
-        ]);
-        return;
-      }
-
-      // 랜덤으로 질문 선택
-      const randomIndex = Math.floor(Math.random() * remainingQuestions.length);
-      const selectedQuestion = remainingQuestions[randomIndex];
-      
-      // 언어에 따른 질문 텍스트
-      const questionText = language === 'ko' 
-        ? selectedQuestion.question 
-        : selectedQuestion.question_en;
-
-      // 질문을 채팅에 추가
-      setChatMessages(prev => [
-        ...prev,
-        { id: Date.now(), type: 'ai', message: questionText }
-      ]);
-
-      // 물어본 질문 ID 추가
-      setAskedQuestionIds(prev => [...prev, selectedQuestion.id]);
-      return;
-    }
-
-    // 기술 면접 모드 (기존 로직)
-    const thinkingMessage: ChatMessage = {
-      id: Date.now(),
-      type: 'ai',
-      message: '...',
-      isThinking: true,
-    };
-
-    setChatMessages(prev => [...prev, thinkingMessage]);
-    setIsSending(true);
-    thinkingIdRef.current = thinkingMessage.id;
-
-    const nextQuestionText = language === 'ko' ? '다음 질문을 해주세요.' : 'Please give me the next question.';
-
-    if (wsReady && wsRef.current) {
-      const wsPayload = { type: 'user', text: nextQuestionText };
-      wsRef.current.send(JSON.stringify(wsPayload));
-    } else {
-      try {
-        const apiPayload = { sessionId, message: nextQuestionText };
-        const response = await sendMessage(apiPayload);
-        setChatMessages(prev => prev.map(m => m.id === thinkingMessage.id ? { ...m, message: response.message, isThinking: false } : m));
-      } catch (error) {
-        console.error('❌ [UI] 메시지 전송 실패:', error);
-        setChatMessages(prev =>
-          prev.map(msg =>
-            msg.id === thinkingMessage.id
-              ? { ...msg, message: '서버 오류: 메시지를 전송할 수 없습니다.', isThinking: false }
-              : msg
-          )
-        );
-      } finally {
-        setIsSending(false);
-        thinkingIdRef.current = null;
-      }
-    }
-  };
-
-  const handleEndInterview = async () => {
-    if (sessionId) {
-      try {
-        await endInterview({ sessionId });
-        navigate(`/${language}/report`, { state: { sessionId } });
-      } catch (error) {
-        console.error("Error ending interview:", error);
-        navigate(`/${language}/report`, { state: { sessionId } });
-      }
-    } else {
-      navigate(`/${language}/report`);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSendMessage();
-    }
-  };
-
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-  };
-
-  const getInterviewTypeDisplay = () => {
-    return state?.interviewType === 'technical' ? texts.technicalInterview : texts.cultureInterview;
-  };
-  
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    const parts = [];
-    if (hours > 0) {
-      parts.push(String(hours).padStart(2, '0'));
-    }
-    parts.push(String(minutes).padStart(2, '0'));
-    parts.push(String(seconds).padStart(2, '0'));
-
-    return parts.join(':');
-  };
 
   if (!state) {
     return null; 
@@ -599,13 +200,22 @@ const InterviewPage = () => {
               <Button
                 onClick={toggleRecording}
                 size="lg"
+                disabled={!microphoneEnabled}
                 className={`rounded-full w-16 h-16 md:w-20 md:h-20 flex items-center justify-center ${
-                  isRecording 
-                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                    : 'bg-blue-500 hover:bg-blue-600'
+                  !microphoneEnabled
+                    ? "bg-gray-500/60 cursor-not-allowed"
+                    : isRecording
+                      ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                      : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                {isRecording ? <MicOff className="h-8 w-8 md:h-12 md:w-12" /> : <Mic className="h-8 w-8 md:h-12 md:w-12" />}
+                {!microphoneEnabled ? (
+                  <MicOff className="h-8 w-8 md:h-12 md:w-12" />
+                ) : isRecording ? (
+                  <MicOff className="h-8 w-8 md:h-12 md:w-12" />
+                ) : (
+                  <Mic className="h-8 w-8 md:h-12 md:w-12" />
+                )}
               </Button>
             </div>
           </div>

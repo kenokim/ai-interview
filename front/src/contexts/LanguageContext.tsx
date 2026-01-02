@@ -36,6 +36,8 @@ const texts = {
     // Experience
     experienceLabel: 'Years of Experience',
     experienceYears: 'years',
+    experienceEntry: 'Entry',
+    experience15Plus: '15+ yrs',
     
     // Details
     detailsLabel: 'Details',
@@ -46,7 +48,16 @@ const texts = {
     
     // Button
     startInterviewButton: 'Start Interview',
+    startButtonShort: 'Start',
     selectJobRoleMessage: 'Please select a job role',
+
+    // Audio
+    speakerLabel: 'Speaker',
+    microphoneLabel: 'Microphone',
+    audioOn: 'ON',
+    audioOff: 'OFF',
+    microphonePermissionRequired:
+      'Microphone permission is required. Please allow microphone access in your browser settings.',
     
     // Interview Page
     currentInterviewSettings: 'Current Interview Settings',
@@ -94,6 +105,8 @@ const texts = {
     // Experience
     experienceLabel: '경력 연차',
     experienceYears: '년차',
+    experienceEntry: '신입',
+    experience15Plus: '15년차+',
     
     // Details
     detailsLabel: '세부 설정',
@@ -104,7 +117,16 @@ const texts = {
     
     // Button
     startInterviewButton: '면접 시작하기',
+    startButtonShort: '시작하기',
     selectJobRoleMessage: '직무를 선택해주세요',
+
+    // Audio
+    speakerLabel: '스피커',
+    microphoneLabel: '마이크',
+    audioOn: 'ON',
+    audioOff: 'OFF',
+    microphonePermissionRequired:
+      '마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.',
     
     // Interview Page
     currentInterviewSettings: '현재 면접 설정',

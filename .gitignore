@@ -25,6 +25,8 @@ lerna-debug.log*
 
 # IDEs and editors
 .idea
+.cursor/rules
+.cursor-docs
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -51,3 +53,11 @@ Thumbs.db
 /temp
 *.tsbuildinfo
 .yarn-integrity
+
+# Python virtual environments
+/server/venv/
+/server/.venv/
+
+# ETL generated assets
+/server/src/etl/input/*.json
+/server/src/etl/output/tts/*

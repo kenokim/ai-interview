@@ -2,34 +2,76 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Upload, FileText, Briefcase, Mic, MessageSquare, Settings, ChevronDown } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
   const navigate = useNavigate();
   const { language, texts } = useLanguage();
-  const [resume, setResume] = useState('');
-  const [jobDescription, setJobDescription] = useState('');
   const [jobRole, setJobRole] = useState('backend');
   const [interviewType, setInterviewType] = useState('technical');
-  const [experience, setExperience] = useState([2]);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [experience, setExperience] = useState([4]);
+  const [speakerEnabled, setSpeakerEnabled] = useState(true);
+  const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
+
+  const requestMicrophonePermission = async (): Promise<boolean> => {
+    if (!("mediaDevices" in navigator) || !navigator.mediaDevices.getUserMedia) {
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleMicrophoneToggle = async (checked: boolean): Promise<void> => {
+    if (!checked) {
+      setMicrophoneEnabled(false);
+      return;
+    }
+
+    const ok = await requestMicrophonePermission();
+    if (!ok) {
+      setMicrophoneEnabled(false);
+      alert(texts.microphonePermissionRequired);
+      return;
+    }
+
+    setMicrophoneEnabled(true);
+  };
+
+  const getExperienceDisplay = (years: number): string => {
+    if (years === 0) return texts.experienceEntry;
+    if (years >= 15) return texts.experience15Plus;
+    if (language === "ko") return `${years}${texts.experienceYears}`;
+    return `${years} ${texts.experienceYears}`;
+  };
+
+  const handleLanguageChange = (nextLanguage: string) => {
+    if (nextLanguage !== "ko" && nextLanguage !== "en") return;
+    if (nextLanguage === language) return;
+    navigate(`/${nextLanguage}`, { replace: true });
+  };
 
   const handleStartInterview = () => {
     navigate(`/${language}/interview`, {
       state: {
-        resume,
-        jobDescription,
+        resume: "",
+        jobDescription: "",
         jobRole,
         language,
         interviewType,
-        experience: experience[0]
+        experience: experience[0],
+        speakerEnabled,
+        microphoneEnabled,
       }
     });
   };
@@ -41,6 +83,36 @@ const Index = () => {
           <Card className="p-6 sm:p-8 shadow-md border border-gray-100 bg-white/70 backdrop-blur-md">
             {/* Header */}
             <div className="text-center mb-6">
+              <div className="flex justify-end">
+                <RadioGroup
+                  value={language}
+                  onValueChange={handleLanguageChange}
+                  className="inline-flex items-center gap-1 rounded-full border bg-white/70 px-1 py-1 text-xs"
+                >
+                  <div className="flex items-center">
+                    <RadioGroupItem value="ko" id="lang-ko" className="sr-only" />
+                    <Label
+                      htmlFor="lang-ko"
+                      className={`cursor-pointer select-none rounded-full px-2 py-1 ${
+                        language === "ko" ? "bg-gray-900 text-white" : "text-gray-700"
+                      }`}
+                    >
+                      {texts.korean}
+                    </Label>
+                  </div>
+                  <div className="flex items-center">
+                    <RadioGroupItem value="en" id="lang-en" className="sr-only" />
+                    <Label
+                      htmlFor="lang-en"
+                      className={`cursor-pointer select-none rounded-full px-2 py-1 ${
+                        language === "en" ? "bg-gray-900 text-white" : "text-gray-700"
+                      }`}
+                    >
+                      {texts.english}
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
                 {texts.title}
               </h1>
@@ -92,7 +164,7 @@ const Index = () => {
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-lg font-semibold text-gray-900">{texts.experienceLabel}</Label>
                   <div className="text-base font-semibold text-indigo-500">
-                    {experience[0]} {texts.experienceYears}
+                    {getExperienceDisplay(experience[0])}
                   </div>
                 </div>
                 <Slider
@@ -104,41 +176,37 @@ const Index = () => {
                   className="w-full"
                 />
               </div>
-              
-              <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <CollapsibleTrigger asChild>
-                  <div className="flex items-center cursor-pointer text-gray-500 hover:text-gray-800">
-                    <h3 className="text-sm font-medium">{texts.detailsLabel}</h3>
-                    <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`} />
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="resume" className="text-base font-semibold text-gray-900 mb-2 block">{texts.resumeLabel}</Label>
-                      <Textarea
-                        id="resume"
-                        placeholder={texts.resumePlaceholder}
-                        value={resume}
-                        onChange={(e) => setResume(e.target.value)}
-                        rows={6}
-                        className="resize-none"
-                      />
+
+              {/* Audio Settings */}
+              <div className="rounded-lg border bg-white/60 px-4 py-3">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {texts.speakerLabel}
+                      </p>
+                      <p className="text-[11px] text-gray-600">
+                        {speakerEnabled ? texts.audioOn : texts.audioOff}
+                      </p>
                     </div>
-                    <div>
-                      <Label htmlFor="job-description" className="text-base font-semibold text-gray-900 mb-2 block">{texts.jobDescriptionLabel}</Label>
-                      <Textarea
-                        id="job-description"
-                        placeholder={texts.jobDescriptionPlaceholder}
-                        value={jobDescription}
-                        onChange={(e) => setJobDescription(e.target.value)}
-                        rows={6}
-                        className="resize-none"
-                      />
-                    </div>
+                    <Switch checked={speakerEnabled} onCheckedChange={setSpeakerEnabled} />
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {texts.microphoneLabel}
+                      </p>
+                      <p className="text-[11px] text-gray-600">
+                        {microphoneEnabled ? texts.audioOn : texts.audioOff}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={microphoneEnabled}
+                      onCheckedChange={handleMicrophoneToggle}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Start Interview Button */}
@@ -149,7 +217,7 @@ const Index = () => {
                 size="lg"
                 className="w-full bg-gradient-to-r from-indigo-400 to-purple-400 hover:from-indigo-500 hover:to-purple-500 text-white font-medium py-3 text-lg shadow-md"
               >
-                {texts.startInterviewButton}
+                {texts.startButtonShort}
               </Button>
               {!jobRole && (
                 <p className="text-xs text-gray-500 mt-2">

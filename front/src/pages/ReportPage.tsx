@@ -1,7 +1,34 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { getSessionStatus } from "@/services/api";
+
+const API_BASE_URL =
+  (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
+    ?.VITE_API_BASE_URL ?? "http://localhost:3000/api/interview";
+
+type SessionStatusDataType = {
+  readonly sessionId: string;
+  readonly stage?: string;
+  readonly turnCount?: number;
+  readonly lastEvaluation?: {
+    readonly score?: number;
+    readonly reasoning?: string;
+  };
+};
+
+async function getSessionStatus(sessionId: string): Promise<SessionStatusDataType> {
+  const response = await fetch(`${API_BASE_URL}/status/${sessionId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const json: unknown = await response.json();
+  return json as SessionStatusDataType;
+}
 
 const ReportPage = () => {
   const location = useLocation();
