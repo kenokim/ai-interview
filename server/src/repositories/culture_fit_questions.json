@@ -1,0 +1,240 @@
+[
+  {
+    "id": "q-culture-001",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "갈등이 발생한 경험이 있나요? 어떻게 해결했는지 말해 주세요.",
+      "en": "Tell me about a time you had a conflict. What was the situation and how did you resolve it?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-001.ko.wav",
+      "en": "tts/q-culture-001.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-002",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "리더십을 발휘했던 경험이 있나요?",
+      "en": "Tell me about a time you demonstrated leadership."
+    },
+    "tts": {
+      "ko": "tts/q-culture-002.ko.wav",
+      "en": "tts/q-culture-002.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-003",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "가장 큰 성과를 냈던 경험을 소개해 주세요.",
+      "en": "Describe your biggest achievement."
+    },
+    "tts": {
+      "ko": "tts/q-culture-003.ko.wav",
+      "en": "tts/q-culture-003.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-004",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "실패했던 경험이 있나요? 어떻게 극복했나요?",
+      "en": "Tell me about a failure. What did you learn and what did you change afterward?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-004.ko.wav",
+      "en": "tts/q-culture-004.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-005",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "스트레스를 크게 받았던 경험과, 어떻게 극복했는지 말해 주세요.",
+      "en": "Describe a high-stress situation and how you managed or overcame it."
+    },
+    "tts": {
+      "ko": "tts/q-culture-005.ko.wav",
+      "en": "tts/q-culture-005.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-007",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "혼자 처리하기 어려울 정도로 일이 몰리면 보통 어떻게 대응하나요?",
+      "en": "When workload becomes too much to handle alone, how do you typically respond?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-007.ko.wav",
+      "en": "tts/q-culture-007.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-008",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "협업 중 문제가 생겼을 때 상대를 어떻게 설득하나요?",
+      "en": "When an issue arises during collaboration, how do you persuade others?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-008.ko.wav",
+      "en": "tts/q-culture-008.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-009",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "같이 일하고 싶은 동료는 어떤 타입인가요? 반대로 힘든 타입은요?",
+      "en": "What kind of teammate do you like working with? And what kind is difficult for you?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-009.ko.wav",
+      "en": "tts/q-culture-009.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-010",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "일을 잘 못하는 동료가 있다면 어떻게 도와주거나 해결하나요?",
+      "en": "If a teammate is underperforming, how would you help or address the situation?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-010.ko.wav",
+      "en": "tts/q-culture-010.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-011",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "주변 사람들이 말하는 본인의 장점/단점은 뭐라고 생각하나요?",
+      "en": "What do people around you say are your strengths and weaknesses?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-011.ko.wav",
+      "en": "tts/q-culture-011.en.wav"
+    }
+  },
+  {
+    "id": "q-culture-012",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "본인이 생각하는 장점/단점은 무엇이고, 단점은 어떻게 보완하고 있나요?",
+      "en": "What do you consider your strengths and weaknesses, and how are you improving your weaknesses?"
+    },
+    "tts": {
+      "ko": "tts/q-culture-012.ko.wav",
+      "en": null
+    }
+  },
+  {
+    "id": "q-culture-013",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "불합리한 결정이나 방향을 경험한 적 있나요? 그때 어떤 태도로 대응했나요?",
+      "en": "Have you experienced an unreasonable decision? How did you respond?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-culture-014",
+    "type": "culture",
+    "role": null,
+    "difficulty": "hard",
+    "question": {
+      "ko": "상사가 부당한 지시를 하면 어떻게 대응하나요?",
+      "en": "How do you respond to an unfair instruction from your manager?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-culture-015",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "회사를 선택할 때 가장 중요하게 보는 기준이 뭔가요?",
+      "en": "What matters most to you when choosing a company?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-culture-016",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "최근에 가장 몰입해서 했던 경험은 뭐였나요?",
+      "en": "What’s something you’ve been deeply engaged in recently?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-culture-018",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "5년, 10년 뒤에 어떤 커리어를 그리고 있나요?",
+      "en": "Where do you see your career in 5 to 10 years?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-culture-019",
+    "type": "culture",
+    "role": null,
+    "difficulty": "mid",
+    "question": {
+      "ko": "회사에 기대하는 바가 무엇인가요?",
+      "en": "What do you expect from the company?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  }
+]

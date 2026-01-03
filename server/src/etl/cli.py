@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
         include_question_ids = (
             {s.strip() for s in str(args.ids).split(",") if s.strip()} if str(args.ids).strip() else None
         )
-        artifacts = run_questions_json_to_voice(
+        artifacts, enriched_data = run_questions_json_to_voice(
             payload,
             output_dir=output_dir,
             api_key=api_key,
@@ -137,9 +137,20 @@ def main(argv: list[str] | None = None) -> int:
             include_question_ids=include_question_ids,
         )
 
+        # Save the enriched JSON
+        if args.input == "-":
+            out_json_name = "questions_with_audio.json"
+        else:
+            out_json_name = Path(args.input).name
+        
+        out_json_path = output_dir / out_json_name
+        out_json_path.write_text(json.dumps(enriched_data, ensure_ascii=False, indent=2), encoding="utf-8")
+        logging.getLogger(__name__).info("Saved enriched JSON to %s", out_json_path)
+
         out = {
             "count": len(artifacts),
             "output_dir": str(output_dir),
+            "output_json": str(out_json_path),
             "files": [
                 {
                     "question_id": a.question_id,

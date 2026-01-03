@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 
-import cultureFitQuestions from "@/assets/culturefit_questions.json";
 import type {
   ChatMessageType,
   EndInterviewPayloadType,
@@ -38,14 +37,30 @@ type UseInterviewPageControllerReturnType = {
   readonly handleSendMessage: () => Promise<void>;
   readonly handleNextQuestion: () => Promise<void>;
   readonly handleEndInterview: () => Promise<void>;
-  readonly handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  readonly handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   readonly getInterviewTypeDisplay: () => string;
   readonly formatTime: (totalSeconds: number) => string;
+
+  // Question flow
+  readonly questionText: string | null;
+  readonly questionPhase: "idle" | "prep" | "answer" | "done";
+  readonly prepSecondsLeft: number;
+  readonly answerSecondsLeft: number;
 };
 
-const API_BASE_URL =
-  (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
-    ?.VITE_API_BASE_URL ?? "http://localhost:3000/api/interview";
+function getApiBaseUrl(): string {
+  const raw =
+    (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
+      ?.VITE_API_BASE_URL ?? "http://localhost:8000";
+  return raw.replace(/\/+$/, "");
+}
+
+const API_BASE_URL = `${getApiBaseUrl()}/api/v1/interview`;
+
+function buildAssetUrl(path: string): string {
+  const normalized = path.replace(/^\/+/, "");
+  return `${getApiBaseUrl()}/${normalized}`;
+}
 
 async function postJson<TResponse, TBody extends Record<string, unknown>>(
   path: string,
@@ -56,6 +71,17 @@ async function postJson<TResponse, TBody extends Record<string, unknown>>(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+  }
+
+  const json: unknown = await response.json();
+  return json as TResponse;
+}
+
+async function getJson<TResponse>(path: string): Promise<TResponse> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: "GET" });
 
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status} ${response.statusText}`);
@@ -87,6 +113,37 @@ async function endInterview(payload: EndInterviewPayloadType): Promise<unknown> 
   return postJson<unknown, EndInterviewPayloadType>("/end", payload);
 }
 
+type InterviewQuestionType = {
+  readonly id: string;
+  readonly type?: string;
+  readonly role?: string;
+  readonly difficulty?: string;
+  readonly question: {
+    readonly ko?: string;
+    readonly en?: string;
+  };
+  readonly tts?: {
+    readonly ko?: string | null;
+    readonly en?: string | null;
+  };
+};
+
+async function fetchQuestions(params: {
+  readonly interviewType: string;
+  readonly role: string;
+}): Promise<readonly InterviewQuestionType[]> {
+  const questionType =
+    params.interviewType === "culture" ? "culture" : "tech";
+
+  const qs = new URLSearchParams();
+  qs.set("type", questionType);
+  if (questionType === "tech") {
+    qs.set("role", params.role);
+  }
+
+  return getJson<readonly InterviewQuestionType[]>(`/questions?${qs.toString()}`);
+}
+
 function parseSessionStartTimeMs(sessionId: string): number | null {
   // Expected legacy format: session_<timestamp>_xxxx
   const parts = sessionId.split("_");
@@ -101,6 +158,8 @@ export function useInterviewPageController(
   const { state, appLanguage, navigate } = params;
 
   const microphoneEnabled = state?.microphoneEnabled ?? false;
+  const speakerEnabled = state?.speakerEnabled ?? true;
+  const audioPlaybackReady = state?.audioPlaybackReady ?? false;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState<boolean>(() => {
@@ -118,7 +177,6 @@ export function useInterviewPageController(
   const [chatMessages, setChatMessages] = useState<ChatMessageType[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [askedQuestionIds, setAskedQuestionIds] = useState<number[]>([]);
 
   const thinkingIdRef = useRef<number | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
@@ -133,6 +191,22 @@ export function useInterviewPageController(
     // We only need a stable object for getInterviewTypeDisplay in this hook.
     return {};
   }, []);
+
+  const [questions, setQuestions] = useState<readonly InterviewQuestionType[]>(
+    []
+  );
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [questionText, setQuestionText] = useState<string | null>(null);
+  const [questionPhase, setQuestionPhase] = useState<
+    "idle" | "prep" | "answer" | "done"
+  >("idle");
+  const [prepSecondsLeft, setPrepSecondsLeft] = useState(0);
+  const [answerSecondsLeft, setAnswerSecondsLeft] = useState(0);
+
+  const prepTimerRef = useRef<number | null>(null);
+  const answerTimerRef = useRef<number | null>(null);
+  const hasAutoStartedRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     localStorage.setItem("isChatOpen", JSON.stringify(isChatOpen));
@@ -213,6 +287,21 @@ export function useInterviewPageController(
                 : msg
             )
           );
+
+          // Load questions from repository-backed API as soon as the session starts.
+          try {
+            const loaded = await fetchQuestions({
+              interviewType: state.interviewType,
+              role: state.jobRole,
+            });
+            // Shuffle once for variety.
+            const shuffled = [...loaded].sort(() => Math.random() - 0.5);
+            setQuestions(shuffled);
+            setQuestionIndex(0);
+          } catch (e) {
+            console.error("Failed to fetch questions:", e);
+          }
+
           return;
         }
 
@@ -246,6 +335,127 @@ export function useInterviewPageController(
 
     void initializeInterview();
   }, [state, navigate, appLanguage]);
+
+  const clearQuestionTimers = (): void => {
+    if (prepTimerRef.current !== null) {
+      window.clearInterval(prepTimerRef.current);
+      prepTimerRef.current = null;
+    }
+    if (answerTimerRef.current !== null) {
+      window.clearInterval(answerTimerRef.current);
+      answerTimerRef.current = null;
+    }
+  };
+
+  const stopAudio = (): void => {
+    const current = audioRef.current;
+    if (!current) return;
+    try {
+      current.pause();
+      current.currentTime = 0;
+    } catch {
+      // Ignore playback stop errors.
+    } finally {
+      audioRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearQuestionTimers();
+      stopAudio();
+    };
+  }, []);
+
+  const pickQuestionText = (q: InterviewQuestionType): string | null => {
+    const lang = state?.language ?? "korean";
+    const isKo = lang === "korean";
+    const txt = isKo ? q.question.ko : q.question.en;
+    return typeof txt === "string" && txt.trim() ? txt.trim() : null;
+  };
+
+  const startQuestionFlow = (q: InterviewQuestionType): void => {
+    clearQuestionTimers();
+    stopAudio();
+
+    const txt = pickQuestionText(q);
+    if (!txt) return;
+
+    setQuestionText(txt);
+    setChatMessages((prev) => [
+      ...prev,
+      { id: Date.now(), type: "ai", message: txt },
+    ]);
+
+    setQuestionPhase("prep");
+    setPrepSecondsLeft(3);
+    setAnswerSecondsLeft(60);
+
+    if (speakerEnabled && audioPlaybackReady) {
+      const lang = state?.language ?? "korean";
+      const langKey = lang === "korean" ? "ko" : "en";
+      const ttsPath = q.tts?.[langKey];
+      if (typeof ttsPath === "string" && ttsPath.trim()) {
+        const url = buildAssetUrl(ttsPath);
+        try {
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          void audio.play().catch((e) => {
+            // If audio wasn't unlocked on the settings page, browsers can block autoplay here.
+            console.warn("Audio play blocked or failed:", e);
+          });
+        } catch (e) {
+          console.warn("Failed to initialize audio playback:", e);
+        }
+      }
+    }
+
+    prepTimerRef.current = window.setInterval(() => {
+      setPrepSecondsLeft((prev) => {
+        if (prev <= 1) {
+          // switch to answer phase
+          window.clearInterval(prepTimerRef.current ?? 0);
+          prepTimerRef.current = null;
+          setQuestionPhase("answer");
+
+          answerTimerRef.current = window.setInterval(() => {
+            setAnswerSecondsLeft((sec) => {
+              if (sec <= 1) {
+                window.clearInterval(answerTimerRef.current ?? 0);
+                answerTimerRef.current = null;
+                return 0;
+              }
+              return sec - 1;
+            });
+          }, 1000);
+
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Auto-advance when answer timer hits 0.
+  useEffect(() => {
+    if (questionPhase !== "answer") return;
+    if (answerSecondsLeft !== 0) return;
+
+    void (async () => {
+      await handleNextQuestion();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answerSecondsLeft, questionPhase]);
+
+  // Auto-start first question once session + questions are ready.
+  useEffect(() => {
+    if (!sessionId) return;
+    if (hasAutoStartedRef.current) return;
+    if (questions.length === 0) return;
+    hasAutoStartedRef.current = true;
+    void handleNextQuestion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, questions.length]);
 
   const handleSendMessage = async (): Promise<void> => {
     if (!currentMessage.trim() || !sessionId || isSending) return;
@@ -304,87 +514,33 @@ export function useInterviewPageController(
   const handleNextQuestion = async (): Promise<void> => {
     if (!sessionId || isSending) return;
 
-    if (interviewType === "culture") {
-      const remainingQuestions = cultureFitQuestions.questions.filter(
-        (q: { id: number }) => !askedQuestionIds.includes(q.id)
-      );
-
-      if (remainingQuestions.length === 0) {
-        const endMessage =
-          appLanguage === "ko"
-            ? "모든 질문이 완료되었습니다. 면접을 종료하시겠습니까?"
-            : "All questions have been completed. Would you like to end the interview?";
-        setChatMessages((prev) => [
-          ...prev,
-          { id: Date.now(), type: "ai", message: endMessage },
-        ]);
-        return;
-      }
-
-      const randomIndex = Math.floor(Math.random() * remainingQuestions.length);
-      const selectedQuestion = remainingQuestions[randomIndex] as {
-        id: number;
-        question: string;
-        question_en: string;
-      };
-
-      const questionText =
+    if (questions.length === 0) {
+      const msg =
         appLanguage === "ko"
-          ? selectedQuestion.question
-          : selectedQuestion.question_en;
-
-      setChatMessages((prev) => [
-        ...prev,
-        { id: Date.now(), type: "ai", message: questionText },
-      ]);
-      setAskedQuestionIds((prev) => [...prev, selectedQuestion.id]);
+          ? "질문을 불러오지 못했습니다. (서버 질문 API를 확인해 주세요)"
+          : "Failed to load questions. (Check the server questions API.)";
+      setChatMessages((prev) => [...prev, { id: Date.now(), type: "ai", message: msg }]);
+      setQuestionPhase("done");
       return;
     }
 
-    const thinkingMessage: ChatMessageType = {
-      id: Date.now(),
-      type: "ai",
-      message: "...",
-      isThinking: true,
-    };
-
-    setChatMessages((prev) => [...prev, thinkingMessage]);
-    setIsSending(true);
-    thinkingIdRef.current = thinkingMessage.id;
-
-    const nextQuestionText =
-      appLanguage === "ko" ? "다음 질문을 해주세요." : "Please give me the next question.";
-
-    try {
-      const apiPayload: SendMessagePayloadType = {
-        sessionId,
-        message: nextQuestionText,
-      };
-      const response = await sendMessage(apiPayload);
-      setChatMessages((prev) =>
-        prev.map((m) =>
-          m.id === thinkingMessage.id
-            ? { ...m, message: response.message, isThinking: false }
-            : m
-        )
-      );
-    } catch (error) {
-      console.error("❌ [UI] 메시지 전송 실패:", error);
-      setChatMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === thinkingMessage.id
-            ? {
-                ...msg,
-                message: "서버 오류: 메시지를 전송할 수 없습니다.",
-                isThinking: false,
-              }
-            : msg
-        )
-      );
-    } finally {
-      setIsSending(false);
-      thinkingIdRef.current = null;
+    if (questionIndex >= questions.length) {
+      const endMessage =
+        appLanguage === "ko"
+          ? "모든 질문이 완료되었습니다. 면접을 종료하시겠습니까?"
+          : "All questions have been completed. Would you like to end the interview?";
+      setChatMessages((prev) => [
+        ...prev,
+        { id: Date.now(), type: "ai", message: endMessage },
+      ]);
+      setQuestionPhase("done");
+      clearQuestionTimers();
+      return;
     }
+
+    const q = questions[questionIndex];
+    startQuestionFlow(q);
+    setQuestionIndex((i) => i + 1);
   };
 
   const handleEndInterview = async (): Promise<void> => {
@@ -403,10 +559,8 @@ export function useInterviewPageController(
     navigate(`/${appLanguage}/report`);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === "Enter") {
-      void handleSendMessage();
-    }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === "Enter") void handleSendMessage();
   };
 
   const toggleRecording = (): void => {
@@ -456,9 +610,13 @@ export function useInterviewPageController(
     handleSendMessage,
     handleNextQuestion,
     handleEndInterview,
-    handleKeyPress,
+    handleKeyDown,
     getInterviewTypeDisplay,
     formatTime,
+    questionText,
+    questionPhase,
+    prepSecondsLeft,
+    answerSecondsLeft,
   };
 }
 

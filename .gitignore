@@ -25,7 +25,6 @@ lerna-debug.log*
 
 # IDEs and editors
 .idea
-.cursor/
 .cursor/rules
 .cursor-docs
 .vscode/*
@@ -57,7 +56,6 @@ Thumbs.db
 
 # Python virtual environments
 /server/venv/
-/server/.venv/
 
 # ETL generated assets
 /server/src/etl/input/*.json

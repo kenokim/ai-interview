@@ -2,9 +2,14 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-const API_BASE_URL =
-  (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
-    ?.VITE_API_BASE_URL ?? "http://localhost:3000/api/interview";
+function getApiBaseUrl(): string {
+  const raw =
+    (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
+      ?.VITE_API_BASE_URL ?? "http://localhost:8000";
+  return raw.replace(/\/+$/, "");
+}
+
+const API_BASE_URL = `${getApiBaseUrl()}/api/v1/interview`;
 
 type SessionStatusDataType = {
   readonly sessionId: string;

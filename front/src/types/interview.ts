@@ -7,6 +7,7 @@ export type InterviewStateType = {
   readonly experience: number;
   readonly speakerEnabled?: boolean;
   readonly microphoneEnabled?: boolean;
+  readonly audioPlaybackReady?: boolean;
 };
 
 export type ChatMessageType = {

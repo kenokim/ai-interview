@@ -1,16 +1,18 @@
 """Pydantic models module."""
 
 from src.models.interview import (
+    EndInterviewRequest,
     InterviewSessionResponse,
     InterviewStartRequest,
-    MessageRequest,
-    MessageResponse,
+    SendMessageRequest,
+    SendMessageResponse,
 )
 
 __all__ = [
     "InterviewStartRequest",
     "InterviewSessionResponse",
-    "MessageRequest",
-    "MessageResponse",
+    "SendMessageRequest",
+    "SendMessageResponse",
+    "EndInterviewRequest",
 ]
 

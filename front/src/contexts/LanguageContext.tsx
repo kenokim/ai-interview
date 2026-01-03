@@ -81,6 +81,16 @@ const texts = {
     chatPlaceholder: 'Enter your answer...',
     elapsedTime: 'Elapsed Time',
     next: 'Next',
+
+    // Timed question flow
+    questionLabel: 'Question',
+    questionStartsIn: 'Starting in',
+    answerTimeLeft: 'Time left',
+    secondsShort: 's',
+
+    // TTS playback
+    enableAudio: 'Enable audio',
+    enableAudioHint: 'Tap to allow audio playback.',
     
     // Languages
     english: 'English',
@@ -150,6 +160,16 @@ const texts = {
     chatPlaceholder: '답변을 입력하세요...',
     elapsedTime: '경과 시간',
     next: '다음',
+
+    // Timed question flow
+    questionLabel: '질문',
+    questionStartsIn: '시작까지',
+    answerTimeLeft: '남은 시간',
+    secondsShort: '초',
+
+    // TTS playback
+    enableAudio: '오디오 켜기',
+    enableAudioHint: '터치해서 오디오 재생을 허용해주세요.',
     
     // Languages
     english: 'English',

@@ -79,20 +79,27 @@ def run_questions_json_to_voice(
     voice_name: str = "Umbriel",
     languages: tuple[str, ...] = ("ko", "en"),
     include_question_ids: set[str] | None = None,
-) -> list[QuestionVoiceArtifactType]:
+) -> tuple[list[QuestionVoiceArtifactType], list[dict]]:
     """
     Generate WAV files for each question, for each requested language.
 
-    The expected question shape (minimal):
-      {
-        "id": "...",
-        "question": { "ko": "...", "en": "..." }
-      }
+    Returns:
+        A tuple of (artifacts, enriched_questions).
+        enriched_questions is a list of the original question dicts with an added 'audio' field:
+        {
+            ...original_fields,
+            "audio": {
+                "ko": "filename.ko.wav",
+                "en": "filename.en.wav"
+            }
+        }
     """
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     artifacts: list[QuestionVoiceArtifactType] = []
+    enriched_questions: list[dict] = []
+
     logger.info(
         "TTS start: output_dir=%s model=%s voice=%s languages=%s",
         str(output_dir),
@@ -111,6 +118,10 @@ def run_questions_json_to_voice(
         if not isinstance(q_texts, dict):
             logger.warning("Skip question: invalid question field (id=%s)", qid)
             continue
+        
+        # Create a copy to enrich
+        enriched_q = dict(q)
+        audio_map = {}
 
         for lang in languages:
             text = q_texts.get(lang)
@@ -118,8 +129,11 @@ def run_questions_json_to_voice(
                 logger.warning("Skip question language: empty text (id=%s lang=%s)", qid, lang)
                 continue
 
-            wav_path = output_dir / f"{qid_safe}.{lang}.wav"
+            filename = f"{qid_safe}.{lang}.wav"
+            wav_path = output_dir / filename
             prompt = _build_tts_prompt(text=text, lang=lang)
+            
+            # Generate WAV
             generate_wav_from_text(
                 prompt,
                 output_wav_path=wav_path,
@@ -127,6 +141,7 @@ def run_questions_json_to_voice(
                 model=model,
                 voice_name=voice_name,
             )
+            
             logger.info(
                 "TTS generated: id=%s lang=%s wav=%s model=%s voice=%s chars=%d",
                 qid,
@@ -136,6 +151,7 @@ def run_questions_json_to_voice(
                 voice_name,
                 len(text.strip()),
             )
+            
             artifacts.append(
                 QuestionVoiceArtifactType(
                     question_id=qid,
@@ -143,7 +159,11 @@ def run_questions_json_to_voice(
                     wav_path=wav_path,
                 )
             )
+            audio_map[lang] = filename
+        
+        enriched_q["audio"] = audio_map
+        enriched_questions.append(enriched_q)
 
     logger.info("TTS done: count=%d output_dir=%s", len(artifacts), str(output_dir))
-    return artifacts
+    return artifacts, enriched_questions
 

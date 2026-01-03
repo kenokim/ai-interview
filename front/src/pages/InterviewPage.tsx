@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,12 +71,16 @@ const InterviewPage = () => {
     setCurrentMessage,
     isSending,
     elapsedTime,
+    questionText,
+    questionPhase,
+    prepSecondsLeft,
+    answerSecondsLeft,
     chatContainerRef,
     inputRef,
     handleSendMessage,
     handleNextQuestion,
     handleEndInterview,
-    handleKeyPress,
+    handleKeyDown,
     getInterviewTypeDisplay,
     formatTime,
   } = useInterviewPageController({
@@ -196,6 +199,34 @@ const InterviewPage = () => {
                 </div>
               )}
             </div>
+
+            {questionText && (
+              <div className="mx-auto max-w-2xl px-4">
+                <div className="rounded-2xl bg-white/10 backdrop-blur border border-white/10 p-4 md:p-5 text-left">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs md:text-sm text-gray-300">
+                      {texts.questionLabel}
+                    </p>
+                    {questionPhase === "prep" && (
+                      <p className="text-xs md:text-sm text-gray-200">
+                        {texts.questionStartsIn} {prepSecondsLeft}
+                        {texts.secondsShort}
+                      </p>
+                    )}
+                    {questionPhase === "answer" && (
+                      <p className="text-xs md:text-sm text-gray-200">
+                        {texts.answerTimeLeft} {formatTime(answerSecondsLeft)}
+                      </p>
+                    )}
+                  </div>
+                  <p className="mt-2 text-base md:text-lg leading-relaxed">
+                    {questionText}
+                  </p>
+
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-center pt-4 md:pt-8">
               <Button
                 onClick={toggleRecording}
@@ -221,7 +252,7 @@ const InterviewPage = () => {
           </div>
         </div>
 
-        {/* Next 버튼 - 우측 하단 고정, 모바일에서 채팅창과 함께 이동 */}
+        {/* Next button - fixed to the bottom-right; moves with the chat panel on mobile */}
         <div className={`fixed right-4 md:right-6 bottom-4 md:bottom-6 z-40 transition-transform duration-500 ease-in-out ${isChatOpen ? '-translate-y-[50vh] md:translate-y-0' : 'translate-y-0'}`}>
           <Button
             onClick={handleNextQuestion}
@@ -271,7 +302,7 @@ const InterviewPage = () => {
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          // 마크다운 컴포넌트 스타일링
+                          // Markdown component styling
                           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                           code: ({ children, className }) => {
                             const isInline = !className;
@@ -320,7 +351,7 @@ const InterviewPage = () => {
                 ref={inputRef}
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder={texts.chatPlaceholder}
                 className="bg-gray-800/80 border-gray-700 rounded-full h-9 md:h-11 pr-10 md:pr-12 text-sm md:text-base"
               />

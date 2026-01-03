@@ -3,10 +3,11 @@
 from fastapi import APIRouter
 
 from src.models.interview import (
+    EndInterviewRequest,
     InterviewSessionResponse,
     InterviewStartRequest,
-    MessageRequest,
-    MessageResponse,
+    SendMessageRequest,
+    SendMessageResponse,
 )
 from src.services.interview_service import InterviewService
 
@@ -20,15 +21,29 @@ async def start_interview(request: InterviewStartRequest) -> InterviewSessionRes
     return await interview_service.start_session(request)
 
 
-@router.post("/{session_id}/message", response_model=MessageResponse)
-async def send_message(session_id: str, request: MessageRequest) -> MessageResponse:
+@router.post("/message", response_model=SendMessageResponse)
+async def send_message(request: SendMessageRequest) -> SendMessageResponse:
     """Send a message to an interview session."""
-    return await interview_service.process_message(session_id, request)
+    return await interview_service.process_message(request)
 
 
-@router.post("/{session_id}/end")
-async def end_interview(session_id: str) -> dict[str, str]:
+@router.post("/end")
+async def end_interview(request: EndInterviewRequest) -> dict[str, str]:
     """End an interview session."""
+    await interview_service.end_session_by_request(request)
+    return {"status": "ended", "sessionId": request.session_id}
+
+
+# Backward-compatible endpoints (older clients)
+@router.post("/{session_id}/end")
+async def end_interview_legacy(session_id: str) -> dict[str, str]:
+    """End an interview session (legacy path-param endpoint)."""
     await interview_service.end_session(session_id)
-    return {"status": "ended", "session_id": session_id}
+    return {"status": "ended", "sessionId": session_id}
+
+
+@router.get("/questions")
+async def get_questions(type: str, role: str = None) -> list[dict]:
+    """Get interview questions."""
+    return interview_service.get_questions(type, role)
 

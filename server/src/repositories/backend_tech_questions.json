@@ -1,0 +1,198 @@
+[
+  {
+    "id": "q-tech-backend-001",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "사용해본 배포 전략과, 장단점에 대해 설명해 주세요.",
+      "en": "What deployment strategies have you used, and what are the pros and cons of each?"
+    },
+    "tts": {
+      "ko": "tts/q-tech-backend-001.ko.wav",
+      "en": "tts/q-tech-backend-001.en.wav"
+    }
+  },
+  {
+    "id": "q-tech-backend-002",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "public 서브넷과, private 서브넷의 차이점이 뭔지 설명해 주세요.",
+      "en": "Explain the difference between public and private subnets."
+    },
+    "tts": {
+      "ko": "tts/q-tech-backend-002.ko.wav",
+      "en": "tts/q-tech-backend-002.en.wav"
+    }
+  },
+  {
+    "id": "q-tech-backend-003",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "트랜잭션 격리 수준과 발생할 수 있는 문제에 대해 설명해 주세요.",
+      "en": "Explain transaction isolation levels and the issues that can occur at each level."
+    },
+    "tts": {
+      "ko": "tts/q-tech-backend-003.ko.wav",
+      "en": "tts/q-tech-backend-003.en.wav"
+    }
+  },
+  {
+    "id": "q-tech-backend-004",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "easy",
+    "question": {
+      "ko": "OOP의 4가지 특성과, SOLID 원칙에 대해 설명해 주세요.",
+      "en": "Explain the four core OOP principles and the SOLID principles."
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-005",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "아시는 디자인 패턴 한두 개만 골라서, 어떤 경우에 활용되는지, 장단점은 무엇인지 설명해 주세요.",
+      "en": "Pick one or two design patterns you know and explain when you’d use them and what their pros and cons are."
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-009",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "ZooKeeper에서 리더/팔로워가 왜 필요한가요? 어떤 문제를 해결하는 개념인가요?",
+      "en": "Why does ZooKeeper need leaders and followers? What problems does that solve?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-010",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "hard",
+    "question": {
+      "ko": "message queue 랑 pub sub의 차이가 뭔가요? Pub/Sub에서 메시지 순서를 보장하려면 어떻게 하나요?",
+      "en": "What’s the difference between an MQ and Pub/Sub? How would you guarantee ordering in Pub/Sub?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-011",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "K8s에서 readinessProbe랑 livenessProbe 차이가 뭐고, 잘못 설정하면 어떤 일이 발생하나요?",
+      "en": "In Kubernetes, what’s the difference between readiness and liveness probes, and what goes wrong if they’re misconfigured?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-012",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "hard",
+    "question": {
+      "ko": "파드가 CrashLoopBackOff 면 보통 어떤 순서로 디버깅하나요? 만약 OOM이면 뭐부터 확인하나요?",
+      "en": "If a pod is CrashLoopBackOff, how do you debug it? And if it’s OOM, what do you check first?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-013",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "hard",
+    "question": {
+      "ko": "Redis를 레플리카 또는 클러스터로 돌리면 어떤 문제가 생기고, 어떻게 대응하나요?",
+      "en": "When running Redis with replicas or cluster, what issues come up and how do you handle them?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-014",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "Redis가 내부적으로 어떻게 작동하는지 간단히 설명해 주세요. 싱글 스레드인데도 빠른 이유가 뭘까요?",
+      "en": "Briefly explain how Redis works internally. Redis is single-threaded—why is it still fast?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-016",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "Python 코루틴이랑 asyncio가 이벤트 루프에서 어떻게 돌아가는지, I/O 작업에서 왜 유리한지 설명해 주세요.",
+      "en": "Explain how Python coroutines/asyncio run on the event loop, and why they help for I/O-bound work."
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-017",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "클라우드 VPC가 뭔지 설명해 주세요.",
+      "en": "What is a cloud VPC?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  },
+  {
+    "id": "q-tech-backend-018",
+    "type": "tech",
+    "role": "backend",
+    "difficulty": "mid",
+    "question": {
+      "ko": "CDN이 무엇인지, 어떤 옵션이 있는지 설명해 주세요.",
+      "en": "What is a CDN, and how do you usually manage options?"
+    },
+    "tts": {
+      "ko": null,
+      "en": null
+    }
+  }
+]

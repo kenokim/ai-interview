@@ -1,36 +1,53 @@
 """Pydantic models for interview-related APIs."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class InterviewStartRequest(BaseModel):
     """Request model for starting an interview."""
 
-    candidate_name: str = Field(..., description="지원자 이름")
-    position: str = Field(..., description="지원 포지션")
-    interview_type: str = Field(
-        default="culture_fit", description="면접 유형 (culture_fit, technical 등)"
-    )
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    job_role: str = Field(..., alias="jobRole", description="Job role")
+    language: str = Field(..., description="Language (korean/english)")
+    experience: str = Field(..., description="Experience level (junior/mid-level/senior)")
+    interview_type: str = Field(..., alias="interviewType", description="Interview type (technical/culture)")
+    resume: str = Field(default="", description="Resume text")
+    job_description: str = Field(default="", alias="jobDescription", description="Job description text")
+    user_name: str = Field(default="User", alias="userName", description="User name")
 
 
 class InterviewSessionResponse(BaseModel):
     """Response model for an interview session."""
 
-    session_id: str = Field(..., description="세션 ID")
-    message: str = Field(..., description="환영 메시지")
-    created_at: str = Field(..., description="세션 생성 시간")
+    model_config = ConfigDict(populate_by_name=True)
+
+    session_id: str = Field(..., alias="sessionId", description="Session ID")
+    message: str = Field(..., description="Welcome message")
+    created_at: str = Field(..., alias="createdAt", description="Session created time (ISO-8601)")
+    stage: str | None = Field(default=None, description="Optional stage label")
 
 
-class MessageRequest(BaseModel):
-    """Request model for sending a message."""
+class SendMessageRequest(BaseModel):
+    """Request model for sending a message in an interview session."""
 
-    content: str = Field(..., description="사용자 메시지 내용")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    session_id: str = Field(..., alias="sessionId", description="Session ID")
+    message: str = Field(..., description="User message")
 
 
-class MessageResponse(BaseModel):
+class SendMessageResponse(BaseModel):
     """Response model for a message."""
 
-    session_id: str = Field(..., description="세션 ID")
-    response: str = Field(..., description="AI 응답")
-    is_complete: bool = Field(default=False, description="면접 완료 여부")
+    message: str = Field(..., description="AI response message")
+    stage: str | None = Field(default=None, description="Optional stage label")
+
+
+class EndInterviewRequest(BaseModel):
+    """Request model for ending an interview session."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    session_id: str = Field(..., alias="sessionId", description="Session ID")
 
